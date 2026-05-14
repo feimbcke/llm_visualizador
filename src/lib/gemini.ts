@@ -12,25 +12,61 @@ export class GeminiError extends Error {
   }
 }
 
+/**
+ * Try to extract the human-readable message Google returns inside its error
+ * envelope: `{ error: { code, message, status } }`. Returns null if the body
+ * doesn't parse or doesn't carry a message.
+ */
+function extractGoogleErrorMessage(raw: string): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { error?: { message?: string } };
+    return parsed.error?.message ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function userMessageForStatus(status: number, raw: string): string {
-  if (status === 400) return 'La solicitud tiene un formato inválido. Revisa la consola.';
-  if (status === 401 || status === 403)
-    return 'La clave de Gemini no es válida o no tiene permisos. Verificala en Google AI Studio.';
+  const detail = extractGoogleErrorMessage(raw);
+  if (status === 400) {
+    if (detail?.toLowerCase().includes('api key not valid')) {
+      return 'La clave de Gemini no es válida. Crea una nueva en Google AI Studio y vuelve a pegarla.';
+    }
+    return detail
+      ? `Gemini rechazó la solicitud: ${detail}`
+      : 'La solicitud tiene un formato inválido. Revisa la consola.';
+  }
+  if (status === 401 || status === 403) {
+    return detail
+      ? `La clave fue rechazada por Google: ${detail}`
+      : 'La clave de Gemini no es válida o no tiene permisos. Verifícala en Google AI Studio.';
+  }
   if (status === 404) return 'El modelo solicitado no existe o no está disponible para tu clave.';
   if (status === 429)
     return 'Superaste el límite de solicitudes por minuto. Espera unos segundos e intenta de nuevo.';
   if (status >= 500) return 'El servicio de Gemini está teniendo problemas. Intenta en un momento.';
-  return `Error ${status}: ${raw.slice(0, 200)}`;
+  return detail ? `Error ${status}: ${detail}` : `Error ${status}: ${raw.slice(0, 200)}`;
 }
 
 /**
- * Validate the key with a cheap GET to /models. Does not consume token quota.
+ * Validate the key by running a minimal generateContent call. This costs ~a
+ * handful of tokens but uses exactly the same endpoint we'll hit later, so
+ * any account/billing/region issue surfaces here instead of on the first
+ * real prompt.
  */
 export async function validateApiKey(apiKey: string): Promise<void> {
-  const url = `${API_BASE}/models?key=${encodeURIComponent(apiKey)}&pageSize=1`;
+  const url = `${API_BASE}/models/${DEFAULT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
   let res: Response;
   try {
-    res = await fetch(url);
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+        generationConfig: { maxOutputTokens: 1 },
+      }),
+    });
   } catch {
     throw new GeminiError(0, 'No pude conectar con Gemini. Revisa tu conexión a internet.');
   }
