@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Header } from './components/Header';
 import { Onboarding } from './components/Onboarding';
-import { DebugChat } from './components/DebugChat';
+import { WorkshopShell } from './components/WorkshopShell';
 import { AppProvider, useApp } from './state/AppContext';
 
 function AppShell() {
@@ -11,22 +11,22 @@ function AppShell() {
   const showOnboarding = !apiKey || changingKey;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-surface">
       <Header onChangeKey={apiKey ? () => setChangingKey(true) : undefined} />
 
-      <main className="flex-1">
-        {showOnboarding ? (
+      {showOnboarding ? (
+        <main className="flex-1">
           <Onboarding
             reentry={!!apiKey}
             onCancel={changingKey ? () => setChangingKey(false) : undefined}
           />
-        ) : (
-          <DebugChat />
-        )}
-      </main>
+        </main>
+      ) : (
+        <WorkshopShell />
+      )}
 
       <footer className="border-t border-border bg-white">
-        <div className="max-w-6xl mx-auto px-4 py-4 text-xs text-muted">
+        <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-muted">
           Taller · Modelos de Lenguaje en Salud · Clínica Alemana
         </div>
       </footer>
