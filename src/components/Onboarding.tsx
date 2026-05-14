@@ -18,17 +18,22 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
   const [showKey, setShowKey] = useState(false);
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const qrRef = useRef<HTMLCanvasElement | null>(null);
+  const qrDesktopRef = useRef<HTMLCanvasElement | null>(null);
+  const qrMobileRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    if (step === 'key' && qrRef.current) {
-      QRCode.toCanvas(qrRef.current, AI_STUDIO_URL, {
-        width: 180,
-        margin: 1,
-        color: { dark: '#0F172A', light: '#FFFFFF' },
-      }).catch(() => {
-        /* QR rendering failure is non-fatal */
-      });
+    if (step !== 'key') return;
+    const opts = {
+      width: 180,
+      margin: 1,
+      color: { dark: '#0F172A', light: '#FFFFFF' },
+    };
+    for (const canvas of [qrDesktopRef.current, qrMobileRef.current]) {
+      if (canvas) {
+        QRCode.toCanvas(canvas, AI_STUDIO_URL, opts).catch(() => {
+          /* QR rendering failure is non-fatal */
+        });
+      }
     }
   }, [step]);
 
@@ -123,14 +128,14 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
             </li>
           </ol>
           <div className="hidden sm:flex flex-col items-center gap-2">
-            <canvas ref={qrRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
+            <canvas ref={qrDesktopRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
             <span className="text-xs text-muted">Escanea para abrir</span>
           </div>
         </div>
 
         {/* Mobile QR (smaller, below the list) */}
         <div className="sm:hidden flex flex-col items-center gap-1 mb-6">
-          <canvas ref={qrRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
+          <canvas ref={qrMobileRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
           <span className="text-xs text-muted">Escanea para abrir</span>
         </div>
 
