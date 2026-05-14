@@ -18,8 +18,8 @@ function userMessageForStatus(status: number, raw: string): string {
     return 'La clave de Gemini no es válida o no tiene permisos. Verificala en Google AI Studio.';
   if (status === 404) return 'El modelo solicitado no existe o no está disponible para tu clave.';
   if (status === 429)
-    return 'Superaste el límite de solicitudes por minuto. Esperá unos segundos e intentá de nuevo.';
-  if (status >= 500) return 'El servicio de Gemini está teniendo problemas. Intentá en un momento.';
+    return 'Superaste el límite de solicitudes por minuto. Espera unos segundos e intenta de nuevo.';
+  if (status >= 500) return 'El servicio de Gemini está teniendo problemas. Intenta en un momento.';
   return `Error ${status}: ${raw.slice(0, 200)}`;
 }
 
@@ -32,7 +32,7 @@ export async function validateApiKey(apiKey: string): Promise<void> {
   try {
     res = await fetch(url);
   } catch {
-    throw new GeminiError(0, 'No pude conectar con Gemini. Revisá tu conexión a internet.');
+    throw new GeminiError(0, 'No pude conectar con Gemini. Revisa tu conexión a internet.');
   }
   if (!res.ok) {
     const raw = await res.text().catch(() => '');
@@ -95,7 +95,7 @@ export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<Strea
     });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
-    throw new GeminiError(0, 'No pude conectar con Gemini. Revisá tu conexión a internet.');
+    throw new GeminiError(0, 'No pude conectar con Gemini. Revisa tu conexión a internet.');
   }
 
   if (!res.ok) {

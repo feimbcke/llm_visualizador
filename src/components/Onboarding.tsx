@@ -36,7 +36,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
     e.preventDefault();
     const trimmed = input.trim();
     if (!trimmed) {
-      setError('Pegá tu clave para continuar.');
+      setError('Pega tu clave para continuar.');
       return;
     }
     setValidating(true);
@@ -75,7 +75,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
 
           <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 mb-6 text-sm text-ink">
             <strong>Tu clave se guarda únicamente en este navegador.</strong> Nunca se envía a
-            ningún servidor del taller. Sólo viaja, cifrada, a Google cuando hacés una consulta.
+            ningún servidor del taller. Solo viaja, cifrada, a Google cuando haces una consulta.
           </div>
 
           <button
@@ -94,16 +94,16 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
       <div className="bg-white border border-border rounded-xl shadow-sm p-6 sm:p-8">
-        <h1 className="text-2xl font-bold text-ink mb-2">Pegá tu clave de Gemini</h1>
+        <h1 className="text-2xl font-bold text-ink mb-2">Pega tu clave de Gemini</h1>
         <p className="text-body mb-6">
-          Andá a Google AI Studio, creá una clave gratuita y pegala acá abajo. Es un proceso de un
+          Ve a Google AI Studio, crea una clave gratuita y pégala aquí abajo. Es un proceso de un
           minuto.
         </p>
 
         <div className="grid sm:grid-cols-[1fr_auto] gap-6 mb-6">
           <ol className="text-body space-y-3 list-decimal list-inside marker:text-brand-500 marker:font-semibold text-sm">
             <li>
-              Abrí{' '}
+              Abre{' '}
               <a
                 href={AI_STUDIO_URL}
                 target="_blank"
@@ -112,26 +112,26 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
               >
                 aistudio.google.com/apikey
               </a>{' '}
-              en otra pestaña (o escaneá el QR).
+              en otra pestaña (o escanea el QR).
             </li>
-            <li>Iniciá sesión con tu cuenta de Google.</li>
+            <li>Inicia sesión con tu cuenta de Google.</li>
             <li>
-              Hacé clic en <strong>"Crear clave de API"</strong> y aceptá los términos.
+              Haz clic en <strong>"Crear clave de API"</strong> y acepta los términos.
             </li>
             <li>
-              Copiá la clave que aparece (empieza con <code>AIza…</code>) y pegala abajo.
+              Copia la clave que aparece (empieza con <code>AIza…</code>) y pégala abajo.
             </li>
           </ol>
           <div className="hidden sm:flex flex-col items-center gap-2">
             <canvas ref={qrRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
-            <span className="text-xs text-muted">Escaneá para abrir</span>
+            <span className="text-xs text-muted">Escanea para abrir</span>
           </div>
         </div>
 
         {/* Mobile QR (smaller, below the list) */}
         <div className="sm:hidden flex flex-col items-center gap-1 mb-6">
           <canvas ref={qrRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
-          <span className="text-xs text-muted">Escaneá para abrir</span>
+          <span className="text-xs text-muted">Escanea para abrir</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -189,7 +189,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
 
         <p className="text-xs text-muted mt-6">
           Tu clave se guarda en <code>localStorage</code> de este navegador. No se transmite a
-          ningún servidor del taller, sólo a Google cuando consultás el modelo.
+          ningún servidor del taller, solo a Google cuando consultas el modelo.
         </p>
       </div>
     </div>
