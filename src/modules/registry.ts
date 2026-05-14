@@ -1,14 +1,26 @@
+import type { ComponentType } from 'react';
+import { StreamingModule } from './streaming';
+import { TemperatureModule } from './temperature';
+import { SystemPromptModule } from './system-prompt';
+
+export interface ModuleProps {
+  tab: 'chat' | 'viz';
+  module: ModuleMeta;
+}
+
 export interface ModuleMeta {
   id: string;
   number: number;
   title: string;
   subtitle: string;
-  /** What the visualization side will show once built. */
+  /** What the visualization side will show once built (for placeholder modules). */
   vizDescription: string;
-  /** Bullet list of what the visualization will include. */
+  /** Bullet list of what the visualization will include (for placeholder modules). */
   vizFeatures: string[];
   /** Default prompt suggestion for the chat in this module. */
   promptHint?: string;
+  /** Custom render for this module. If absent, the placeholder is used. */
+  Component?: ComponentType<ModuleProps>;
 }
 
 export const MODULES: readonly ModuleMeta[] = [
@@ -25,6 +37,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Alternativas top-K cuando el modelo las expone',
     ],
     promptHint: 'Explícame en una frase qué es un token en un LLM.',
+    Component: StreamingModule,
   },
   {
     id: 'temperature',
@@ -39,6 +52,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Distribución visible de las respuestas',
     ],
     promptHint: 'Dame tres ideas para iniciar una consulta médica.',
+    Component: TemperatureModule,
   },
   {
     id: 'hallucinations',
@@ -67,6 +81,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Vista comparativa de respuestas',
     ],
     promptHint: '¿Debería iniciar anticoagulación en este paciente con fibrilación auricular?',
+    Component: SystemPromptModule,
   },
   {
     id: 'injection',

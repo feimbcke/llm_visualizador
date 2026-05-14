@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { MODULES, getModuleById } from '../modules/registry';
+import { DefaultModule } from '../modules/_DefaultModule';
 import { getLastModuleId, setLastModuleId } from '../lib/storage';
 import { Stepper } from './Stepper';
-import { ModuleChat } from './ModuleChat';
-import { VisualizationPlaceholder } from './VisualizationPlaceholder';
 
 type Tab = 'chat' | 'viz';
 
@@ -98,19 +97,12 @@ export function WorkshopShell() {
         </div>
       </div>
 
-      {/* Main content area: split on lg+, single tab on mobile */}
+      {/* Main content area: split on lg+, single tab on mobile.
+          The module component renders BOTH panes; we key on module.id so
+          switching modules unmounts and re-mounts (isolated per-module state). */}
       <div className="flex-1 min-h-0 max-w-6xl w-full mx-auto px-4 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-[calc(100vh-22rem)] min-h-[480px]">
-          <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>
-            <ModuleChat
-              key={module.id} /* remount = isolated chat per module */
-              moduleId={module.id}
-              promptHint={module.promptHint}
-            />
-          </div>
-          <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>
-            <VisualizationPlaceholder module={module} />
-          </div>
+          <ModuleBody key={module.id} module={module} tab={tab} />
         </div>
       </div>
 
@@ -118,4 +110,9 @@ export function WorkshopShell() {
       <Stepper currentId={currentId} onSelect={goTo} />
     </div>
   );
+}
+
+function ModuleBody({ module, tab }: { module: import('../modules/registry').ModuleMeta; tab: Tab }) {
+  const Component = module.Component ?? DefaultModule;
+  return <Component module={module} tab={tab} />;
 }
