@@ -4,15 +4,14 @@ export default function App() {
       <header className="bg-white border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div
-              aria-hidden
-              className="w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center text-white font-bold shrink-0"
-            >
-              CA
-            </div>
-            <div className="leading-tight min-w-0">
+            <img
+              src="/logo.svg"
+              alt="Clínica Alemana"
+              className="h-10 w-auto shrink-0"
+            />
+            <div className="leading-tight min-w-0 border-l border-border pl-3">
               <div className="text-ink font-semibold truncate">Modelos de Lenguaje en Salud</div>
-              <div className="text-muted text-xs truncate">Clínica Alemana · Taller interactivo</div>
+              <div className="text-muted text-xs truncate">Taller interactivo</div>
             </div>
           </div>
           <a
