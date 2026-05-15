@@ -97,23 +97,12 @@ export const MODULES: readonly ModuleMeta[] = [
     ],
     promptHint: 'Resúmeme la siguiente nota clínica.',
   },
-  {
-    id: 'tools',
-    number: 6,
-    title: 'Herramientas y búsqueda web',
-    subtitle: 'Por qué los modelos solos no saben la fecha de hoy',
-    vizDescription:
-      'La misma pregunta con y sin Google Search activado (grounding nativo de Gemini). Comparación lado a lado, con las fuentes citadas cuando hay búsqueda.',
-    vizFeatures: [
-      'Toggle: con / sin búsqueda web',
-      'Respuestas comparadas en paralelo',
-      'Fuentes y citas devueltas por Gemini',
-    ],
-    promptHint: '¿Qué actualizaciones hay esta semana sobre guías clínicas de hipertensión?',
-  },
+  // Módulo 6 ("Herramientas y búsqueda web") fue diseñado en torno al
+  // grounding de Google Search nativo de Gemini. Tras el cambio a Groq queda
+  // oculto hasta definir el reemplazo (function calling, compound-beta, etc.).
   {
     id: 'bias',
-    number: 7,
+    number: 6,
     title: 'Sesgos en medicina',
     subtitle: 'Cómo el contexto del paciente afecta las recomendaciones',
     vizDescription:
@@ -127,7 +116,7 @@ export const MODULES: readonly ModuleMeta[] = [
   },
   {
     id: 'memory',
-    number: 8,
+    number: 7,
     title: 'Memoria de corto plazo',
     subtitle: 'La ventana de contexto y por qué el modelo olvida',
     vizDescription:

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { GeminiError, streamText, type Content } from '../lib/gemini';
+import { LlmError, streamText, type Content } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
@@ -106,7 +106,7 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setChatError(err instanceof GeminiError ? err.userMessage : 'Algo falló al generar.');
+        setChatError(err instanceof LlmError ? err.userMessage : 'Algo falló al generar.');
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last?.role === 'model' && last.text === '') return prev.slice(0, -1);
@@ -157,7 +157,7 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
         });
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          const msg = err instanceof GeminiError ? err.userMessage : 'Error';
+          const msg = err instanceof LlmError ? err.userMessage : 'Error';
           setComparison((s) => {
             const next = [...s];
             next[idx] = { ...next[idx], done: true, error: msg };

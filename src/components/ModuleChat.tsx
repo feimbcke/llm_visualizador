@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { GeminiError, streamText, type Content } from '../lib/gemini';
+import { LlmError, streamText, type Content } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 
 interface Message {
@@ -56,7 +56,7 @@ export function ModuleChat({ promptHint }: ModuleChatProps) {
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         setError(
-          err instanceof GeminiError ? err.userMessage : 'Algo falló al generar la respuesta.',
+          err instanceof LlmError ? err.userMessage : 'Algo falló al generar la respuesta.',
         );
         setMessages((prev) => {
           const last = prev[prev.length - 1];
@@ -91,7 +91,7 @@ export function ModuleChat({ promptHint }: ModuleChatProps) {
       <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div>
           <div className="font-semibold text-ink">Chat</div>
-          <div className="text-xs text-muted">Gemini 2.5 Flash · respuesta en streaming</div>
+          <div className="text-xs text-muted">Llama 3.3 70B (Groq) · respuesta en streaming</div>
         </div>
         {messages.length > 0 && (
           <button type="button" onClick={reset} className="text-sm text-muted hover:text-ink">

@@ -30,6 +30,11 @@ export function WorkshopShell() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* Desktop: stepper directly under the header */}
+      <div className="hidden lg:block">
+        <Stepper currentId={currentId} onSelect={goTo} position="top" />
+      </div>
+
       {/* Module title banner */}
       <div className="bg-white border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-start sm:items-center gap-3 flex-col sm:flex-row sm:justify-between">
@@ -106,8 +111,10 @@ export function WorkshopShell() {
         </div>
       </div>
 
-      {/* Bottom stepper */}
-      <Stepper currentId={currentId} onSelect={goTo} />
+      {/* Mobile: stepper pinned at the bottom (footer) */}
+      <div className="lg:hidden">
+        <Stepper currentId={currentId} onSelect={goTo} position="bottom" />
+      </div>
     </div>
   );
 }

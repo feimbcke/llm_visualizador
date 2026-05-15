@@ -3,13 +3,16 @@ import { MODULES } from '../modules/registry';
 interface StepperProps {
   currentId: string;
   onSelect: (id: string) => void;
+  /** "top" sits under the header (desktop); "bottom" sits as a footer (mobile). */
+  position?: 'top' | 'bottom';
 }
 
-export function Stepper({ currentId, onSelect }: StepperProps) {
+export function Stepper({ currentId, onSelect, position = 'bottom' }: StepperProps) {
+  const borderClass = position === 'top' ? 'border-b border-border' : 'border-t border-border';
   return (
     <nav
       aria-label="Módulos del taller"
-      className="bg-white border-t border-border"
+      className={`bg-white ${borderClass}`}
     >
       <ol className="max-w-6xl mx-auto px-2 sm:px-4 py-3 flex gap-2 overflow-x-auto scrollbar-thin">
         {MODULES.map((m) => {

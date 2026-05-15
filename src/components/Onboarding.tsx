@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { validateApiKey, GeminiError } from '../lib/gemini';
+import { validateApiKey, LlmError } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 
-const AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
+const GROQ_KEYS_URL = 'https://console.groq.com/keys';
 
 interface OnboardingProps {
   /** If true, we are re-entering onboarding from inside the app to change the key. */
@@ -30,7 +30,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
     };
     for (const canvas of [qrDesktopRef.current, qrMobileRef.current]) {
       if (canvas) {
-        QRCode.toCanvas(canvas, AI_STUDIO_URL, opts).catch(() => {
+        QRCode.toCanvas(canvas, GROQ_KEYS_URL, opts).catch(() => {
           /* QR rendering failure is non-fatal */
         });
       }
@@ -50,7 +50,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
       await validateApiKey(trimmed);
       saveApiKey(trimmed);
     } catch (err) {
-      setError(err instanceof GeminiError ? err.userMessage : 'No pude validar la clave.');
+      setError(err instanceof LlmError ? err.userMessage : 'No pude validar la clave.');
     } finally {
       setValidating(false);
     }
@@ -70,9 +70,9 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
 
           <h2 className="text-lg font-semibold text-ink mb-2">¿Qué vas a necesitar?</h2>
           <ul className="text-body space-y-2 mb-6 list-disc list-inside marker:text-brand-500">
-            <li>Una cuenta de Google.</li>
+            <li>Un correo electrónico para crear una cuenta gratuita en Groq.</li>
             <li>
-              Una clave gratuita de <strong>Google AI Studio</strong> — la generamos juntos en el
+              Una clave gratuita de <strong>Groq Cloud</strong> — la generamos juntos en el
               siguiente paso.
             </li>
             <li>Este dispositivo (computador o teléfono).</li>
@@ -80,7 +80,8 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
 
           <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 mb-6 text-sm text-ink">
             <strong>Tu clave se guarda únicamente en este navegador.</strong> Nunca se envía a
-            ningún servidor del taller. Solo viaja, cifrada, a Google cuando haces una consulta.
+            ningún servidor del taller. Solo viaja, cifrada, al proveedor del modelo cuando haces
+            una consulta.
           </div>
 
           <button
@@ -99,10 +100,11 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
       <div className="bg-white border border-border rounded-xl shadow-sm p-6 sm:p-8">
-        <h1 className="text-2xl font-bold text-ink mb-2">Pega tu clave de Gemini</h1>
+        <h1 className="text-2xl font-bold text-ink mb-2">Pega tu clave de Groq</h1>
         <p className="text-body mb-6">
-          Ve a Google AI Studio, crea una clave gratuita y pégala aquí abajo. Es un proceso de un
-          minuto.
+          Crea una cuenta gratuita en Groq Cloud, genera una clave de API y pégala aquí abajo. Es
+          un proceso de un par de minutos. Groq nos da un límite cómodo de uso gratuito,
+          suficiente para todo el taller.
         </p>
 
         <div className="grid sm:grid-cols-[1fr_auto] gap-6 mb-6">
@@ -110,32 +112,45 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
             <li>
               Abre{' '}
               <a
-                href={AI_STUDIO_URL}
+                href={GROQ_KEYS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-600 underline hover:text-brand-700 break-all"
               >
-                aistudio.google.com/apikey
+                console.groq.com/keys
               </a>{' '}
               en otra pestaña (o escanea el QR).
             </li>
-            <li>Inicia sesión con tu cuenta de Google.</li>
             <li>
-              Haz clic en <strong>"Crear clave de API"</strong> y acepta los términos.
+              Crea una cuenta gratuita (con Google, GitHub o correo electrónico) o inicia sesión si
+              ya tienes una.
             </li>
             <li>
-              Copia la clave que aparece (empieza con <code>AIza…</code>) y pégala abajo.
+              Haz clic en <strong>"Create API Key"</strong>, ponle un nombre cualquiera (por
+              ejemplo, <em>taller</em>) y créala.
+            </li>
+            <li>
+              Copia la clave que aparece (empieza con <code>gsk_…</code>) y pégala abajo.{' '}
+              <strong>Solo se muestra una vez</strong>, así que cópiala antes de cerrar el cuadro.
             </li>
           </ol>
           <div className="hidden sm:flex flex-col items-center gap-2">
-            <canvas ref={qrDesktopRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
+            <canvas
+              ref={qrDesktopRef}
+              className="rounded-md border border-border"
+              aria-label="QR a Groq Cloud"
+            />
             <span className="text-xs text-muted">Escanea para abrir</span>
           </div>
         </div>
 
         {/* Mobile QR (smaller, below the list) */}
         <div className="sm:hidden flex flex-col items-center gap-1 mb-6">
-          <canvas ref={qrMobileRef} className="rounded-md border border-border" aria-label="QR a Google AI Studio" />
+          <canvas
+            ref={qrMobileRef}
+            className="rounded-md border border-border"
+            aria-label="QR a Groq Cloud"
+          />
           <span className="text-xs text-muted">Escanea para abrir</span>
         </div>
 
@@ -151,7 +166,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
                 spellCheck={false}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="AIza..."
+                placeholder="gsk_..."
                 className="flex-1 px-3 py-2 rounded-lg border border-border bg-white text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 font-mono text-sm"
                 disabled={validating}
               />
@@ -194,7 +209,7 @@ export function Onboarding({ reentry, onCancel }: OnboardingProps) {
 
         <p className="text-xs text-muted mt-6">
           Tu clave se guarda en <code>localStorage</code> de este navegador. No se transmite a
-          ningún servidor del taller, solo a Google cuando consultas el modelo.
+          ningún servidor del taller, solo al proveedor del modelo cuando consultas.
         </p>
       </div>
     </div>

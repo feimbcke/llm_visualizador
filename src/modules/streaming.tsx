@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GeminiError, streamText } from '../lib/gemini';
+import { LlmError, streamText } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
@@ -45,7 +45,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setError(err instanceof GeminiError ? err.userMessage : 'Algo falló al generar.');
+        setError(err instanceof LlmError ? err.userMessage : 'Algo falló al generar.');
       }
     } finally {
       setStreaming(false);

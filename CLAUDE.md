@@ -37,8 +37,8 @@ Professional, warm, clear. The audience is medical professionals. Medical exampl
 
 ## Other project conventions
 
-- Default Gemini model: `gemini-2.5-flash`. Hardcoded in `src/lib/gemini.ts`.
-- API key lives only in `localStorage`. Never send it anywhere except `generativelanguage.googleapis.com`.
+- Provider: Groq (OpenAI-compatible API). Default model `llama-3.3-70b-versatile`, hardcoded in `src/lib/llm.ts`. We switched off Gemini because its free tier collapsed to ~20 RPD; Groq gives 30 RPM / 14,400 RPD per user.
+- API key lives only in `localStorage`. Never send it anywhere except `api.groq.com`.
 - Brand colors in `src/index.css` (`--color-brand-*`). Don't introduce competing palettes.
 - Mobile-first: every new component must work on a phone before being considered done.
 - Dr Fernando Eimbcke's name with LinkedIn link must remain prominent in the header — see `src/components/Header.tsx`.

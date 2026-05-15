@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { GeminiError, streamText } from '../lib/gemini';
+import { LlmError, streamText } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
@@ -67,7 +67,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setChatError(err instanceof GeminiError ? err.userMessage : 'Algo falló al generar.');
+        setChatError(err instanceof LlmError ? err.userMessage : 'Algo falló al generar.');
       }
     } finally {
       setStreaming(false);
@@ -110,7 +110,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
         });
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          const msg = err instanceof GeminiError ? err.userMessage : 'Error';
+          const msg = err instanceof LlmError ? err.userMessage : 'Error';
           setCompareSlots((s) => {
             const next = [...s];
             next[slotIndex] = { ...next[slotIndex], done: true, error: msg };
