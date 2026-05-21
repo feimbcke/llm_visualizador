@@ -66,8 +66,8 @@ export function WorkshopShell() {
         </div>
       </div>
 
-      {/* Mobile tab switcher */}
-      <div className="lg:hidden bg-white border-b border-border">
+      {/* Mobile tab switcher (hidden for modules that stack both panes) */}
+      <div className={`lg:hidden bg-white border-b border-border ${module.mobileLayout === 'stack' ? 'hidden' : ''}`}>
         <div
           role="tablist"
           aria-label="Vista"
@@ -107,7 +107,12 @@ export function WorkshopShell() {
           switching modules unmounts and re-mounts (isolated per-module state). */}
       <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-6xl mx-auto px-4 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:h-full min-h-[480px]">
-          <ModuleBody key={module.id} module={module} tab={tab} />
+          <ModuleBody
+            key={module.id}
+            module={module}
+            tab={tab}
+            onMainAction={() => setTab('viz')}
+          />
         </div>
       </div>
 
@@ -119,7 +124,15 @@ export function WorkshopShell() {
   );
 }
 
-function ModuleBody({ module, tab }: { module: import('../modules/registry').ModuleMeta; tab: Tab }) {
+function ModuleBody({
+  module,
+  tab,
+  onMainAction,
+}: {
+  module: import('../modules/registry').ModuleMeta;
+  tab: Tab;
+  onMainAction: () => void;
+}) {
   const Component = module.Component ?? DefaultModule;
-  return <Component module={module} tab={tab} />;
+  return <Component module={module} tab={tab} onMainAction={onMainAction} />;
 }

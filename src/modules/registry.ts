@@ -7,6 +7,12 @@ import { SystemPromptModule } from './system-prompt';
 export interface ModuleProps {
   tab: 'chat' | 'viz';
   module: ModuleMeta;
+  /**
+   * Call when the module's primary action runs (send, generate, …). On mobile
+   * this switches to the visualization tab; on desktop both panes are visible
+   * so it is a no-op.
+   */
+  onMainAction?: () => void;
 }
 
 export interface ModuleMeta {
@@ -20,6 +26,11 @@ export interface ModuleMeta {
   vizFeatures: string[];
   /** Default prompt suggestion for the chat in this module. */
   promptHint?: string;
+  /**
+   * Mobile layout. 'tabs' (default) shows Chat/Visualización as switchable tabs;
+   * 'stack' renders both panes stacked (chat above visualization) with no tabs.
+   */
+  mobileLayout?: 'tabs' | 'stack';
   /** Custom render for this module. If absent, the placeholder is used. */
   Component?: ComponentType<ModuleProps>;
 }
@@ -68,6 +79,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Comparación con la versión "con herramientas"',
     ],
     promptHint: 'Cítame un artículo de NEJM sobre el uso de SGLT2 en cirrosis descompensada.',
+    mobileLayout: 'stack',
     Component: HallucinationsModule,
   },
   {

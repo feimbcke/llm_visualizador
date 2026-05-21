@@ -77,7 +77,7 @@ function countFlags(text: string): number {
   return matches ? matches.length : 0;
 }
 
-export function HallucinationsModule({ tab }: ModuleProps) {
+export function HallucinationsModule(_props: ModuleProps) {
   const { authed } = useApp();
   const [input, setInput] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -305,10 +305,13 @@ export function HallucinationsModule({ tab }: ModuleProps) {
     </div>
   );
 
+  // Stacked layout (set via mobileLayout: 'stack' in the registry): both panes
+  // are always rendered — side by side on desktop (2-col grid), stacked with
+  // the visualization below the chat on mobile (1-col grid).
   return (
     <>
-      <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>{ChatPane}</div>
-      <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>{VizPane}</div>
+      <div className="block">{ChatPane}</div>
+      <div className="block">{VizPane}</div>
     </>
   );
 }

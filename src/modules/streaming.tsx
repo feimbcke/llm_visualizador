@@ -52,7 +52,7 @@ function tokenTitle(tok: Tok): string {
   return lines.join('\n');
 }
 
-export function StreamingModule({ tab, module }: ModuleProps) {
+export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
   const { authed } = useApp();
   const [input, setInput] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -74,6 +74,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
   async function run(textArg?: string) {
     const prompt = (textArg ?? input).trim();
     if (!prompt || !authed || streaming) return;
+    onMainAction?.();
     setInput('');
     setStreaming(true);
     const ctrl = new AbortController();

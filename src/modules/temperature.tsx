@@ -29,7 +29,7 @@ const TEMP_PRESETS = [
   { value: 2.0, label: '2.0', hint: 'Máxima — muy aleatoria' },
 ];
 
-export function TemperatureModule({ tab, module }: ModuleProps) {
+export function TemperatureModule({ tab, module, onMainAction }: ModuleProps) {
   const { authed } = useApp();
   const [input, setInput] = useState('');
   const [temperature, setTemperature] = useState(1.0);
@@ -43,6 +43,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
   async function generate(textArg?: string) {
     const prompt = (textArg ?? input).trim();
     if (!prompt || !authed || running) return;
+    onMainAction?.();
     setResultPrompt(prompt);
     setResultTemp(temperature);
     setSlots([
