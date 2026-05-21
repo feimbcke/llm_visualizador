@@ -1,28 +1,21 @@
-import { useState } from 'react';
 import { Header } from './components/Header';
-import { Onboarding } from './components/Onboarding';
+import { Login } from './components/Login';
 import { WorkshopShell } from './components/WorkshopShell';
 import { AppProvider, useApp } from './state/AppContext';
 
 function AppShell() {
-  const { apiKey } = useApp();
-  const [changingKey, setChangingKey] = useState(false);
-
-  const showOnboarding = !apiKey || changingKey;
+  const { authed, logout } = useApp();
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
-      <Header onChangeKey={apiKey ? () => setChangingKey(true) : undefined} />
+      <Header onLogout={authed ? logout : undefined} />
 
-      {showOnboarding ? (
-        <main className="flex-1">
-          <Onboarding
-            reentry={!!apiKey}
-            onCancel={changingKey ? () => setChangingKey(false) : undefined}
-          />
-        </main>
-      ) : (
+      {authed ? (
         <WorkshopShell />
+      ) : (
+        <main className="flex-1">
+          <Login />
+        </main>
       )}
 
       <footer className="border-t border-border bg-white">

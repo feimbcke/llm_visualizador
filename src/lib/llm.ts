@@ -1,18 +1,23 @@
 /**
- * Provider-agnostic LLM client. Backed by Groq's OpenAI-compatible API.
+ * Client for the workshop's own backend proxy (Cloudflare Pages Function at
+ * /api/chat), which holds the single shared OpenAI key server-side.
  *
- * Why Groq: free tier is 30 RPM / 14,400 RPD per user. Gemini's free tier
- * collapsed to ~20 RPD on Flash, which made the workshop unworkable. Groq's
- * Llama 3.3 70B Versatile is fast on LPU hardware and capable enough for
- * the clinical-reasoning demos.
+ * Why a proxy instead of the old BYOK model: we now use one shared OpenAI key
+ * for the whole room. A shared key can never live in client code — anything the
+ * browser downloads, an attendee can read — so the key stays on the server and
+ * the browser only ever holds a short-lived session token issued by /api/login
+ * after the workshop password is entered.
  *
- * The external surface keeps Gemini-style `Content[]` to minimize churn
- * across the module code. Internal translation to OpenAI message format
- * lives in toOpenAIMessages().
+ * The external surface keeps the Gemini-style `Content[]` shape so the module
+ * code didn't need rewriting across provider/architecture changes. Internal
+ * translation to OpenAI message format lives in toOpenAIMessages().
  */
+import { clearSessionToken, getSessionToken, setSessionToken } from './storage';
 
-export const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
-const API_BASE = 'https://api.groq.com/openai/v1';
+/** Default model for every module. Reasoning model: temperature is fixed at 1. */
+export const DEFAULT_MODEL = 'gpt-5-nano';
+/** Module 2 (temperatura) needs a model that accepts a custom temperature. */
+export const TEMPERATURE_MODEL = 'gpt-4.1-nano';
 
 export class LlmError extends Error {
   status: number;
@@ -47,49 +52,69 @@ function userMessageForStatus(status: number, raw: string): string {
       : 'La solicitud tiene un formato inválido. Revisa la consola.';
   }
   if (status === 401) {
-    return 'La clave no es válida. Crea una nueva en console.groq.com/keys y vuelve a pegarla.';
+    return 'Tu sesión expiró. Recarga la página e ingresa la contraseña otra vez.';
   }
-  if (status === 403) {
-    return detail
-      ? `Acceso denegado: ${detail}`
-      : 'La clave no tiene permisos para este modelo.';
-  }
-  if (status === 404) return 'El modelo solicitado no existe o no está disponible para tu clave.';
+  if (status === 404) return 'El modelo solicitado no está disponible.';
   if (status === 429) {
-    return 'Superaste el límite de solicitudes por minuto. Espera unos segundos e intenta de nuevo.';
+    return 'Hay mucha demanda en este momento. Espera unos segundos e intenta de nuevo.';
   }
   if (status >= 500) return 'El servicio está teniendo problemas. Intenta en un momento.';
   return detail ? `Error ${status}: ${detail}` : `Error ${status}: ${raw.slice(0, 200)}`;
 }
 
-/**
- * Validate the key with a minimal chat completion call. Costs a handful of
- * tokens but uses the same endpoint as every real request, so any auth /
- * model / region issue surfaces here instead of at first prompt.
- */
-export async function validateApiKey(apiKey: string): Promise<void> {
+// ---------------------------------------------------------------------------
+// Auth: workshop password gate
+// ---------------------------------------------------------------------------
+
+/** Fires when the proxy rejects our token (expired/invalid) so the UI can react. */
+export const UNAUTHORIZED_EVENT = 'llmviz:unauthorized';
+
+/** Token shape is `${expEpochMs}.${sig}`; we can read the exp client-side. */
+export function isAuthenticated(): boolean {
+  const token = getSessionToken();
+  if (!token) return false;
+  const dot = token.indexOf('.');
+  if (dot < 0) return false;
+  const exp = Number(token.slice(0, dot));
+  return Number.isFinite(exp) && exp > Date.now();
+}
+
+/** Exchange the workshop password for a session token. Throws LlmError on failure. */
+export async function login(password: string): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/chat/completions`, {
+    res = await fetch('/api/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 1,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
     });
   } catch {
-    throw new LlmError(0, 'No pude conectar con el proveedor. Revisa tu conexión a internet.');
+    throw new LlmError(0, 'No pude conectar con el servidor del taller. Revisa tu conexión.');
   }
   if (!res.ok) {
+    if (res.status === 401) throw new LlmError(401, 'Contraseña incorrecta. Intenta de nuevo.');
     const raw = await res.text().catch(() => '');
-    throw new LlmError(res.status, userMessageForStatus(res.status, raw), raw);
+    throw new LlmError(res.status, 'No pude validar la contraseña. Intenta de nuevo.', raw);
+  }
+  const data = (await res.json()) as { token?: string };
+  if (!data.token) throw new LlmError(0, 'Respuesta inesperada del servidor.');
+  setSessionToken(data.token);
+}
+
+export function logout(): void {
+  clearSessionToken();
+}
+
+function handleUnauthorized(): void {
+  clearSessionToken();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
 }
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
 
 export interface Part {
   text?: string;
@@ -110,7 +135,7 @@ export interface GenerationConfig {
 }
 
 export interface StreamOptions {
-  apiKey: string;
+  /** Defaults to DEFAULT_MODEL server-side. Only allowlisted models are honored. */
   model?: string;
   contents: Content[];
   systemInstruction?: string;
@@ -144,42 +169,36 @@ interface OpenAIChunk {
 }
 
 /**
- * Stream raw OpenAI-format chunks from the provider.
+ * Stream raw OpenAI-format chunks from our proxy. The OpenAI key never touches
+ * this code — we send the session token; the Function injects the real key.
  */
 export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<OpenAIChunk> {
-  const model = opts.model ?? DEFAULT_MODEL;
   const messages = toOpenAIMessages(opts.contents, opts.systemInstruction);
 
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-    stream: true,
-  };
-  if (opts.generationConfig) {
-    const g = opts.generationConfig;
-    if (g.temperature !== undefined) body.temperature = g.temperature;
-    if (g.topP !== undefined) body.top_p = g.topP;
-    if (g.maxOutputTokens !== undefined) body.max_tokens = g.maxOutputTokens;
-    if (g.candidateCount !== undefined) body.n = g.candidateCount;
+  const body: Record<string, unknown> = { messages, stream: true };
+  if (opts.model) body.model = opts.model;
+  if (opts.generationConfig?.temperature !== undefined) {
+    body.temperature = opts.generationConfig.temperature;
   }
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/chat/completions`, {
+    res = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${opts.apiKey}`,
+        Authorization: `Bearer ${getSessionToken() ?? ''}`,
       },
       body: JSON.stringify(body),
       signal: opts.signal,
     });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
-    throw new LlmError(0, 'No pude conectar con el proveedor. Revisa tu conexión a internet.');
+    throw new LlmError(0, 'No pude conectar con el servidor del taller. Revisa tu conexión.');
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized();
     const raw = await res.text().catch(() => '');
     throw new LlmError(res.status, userMessageForStatus(res.status, raw), raw);
   }

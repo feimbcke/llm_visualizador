@@ -1,41 +1,47 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { clearApiKey, getApiKey, setApiKey as persistKey } from '../lib/storage';
+import { isAuthenticated, login as doLogin, logout as doLogout, UNAUTHORIZED_EVENT } from '../lib/llm';
+import { SESSION_KEY } from '../lib/storage';
 
 interface AppState {
-  apiKey: string | null;
-  saveApiKey: (key: string) => void;
-  removeApiKey: () => void;
+  /** True once the workshop password has been accepted and the token is valid. */
+  authed: boolean;
+  /** Exchange the workshop password for a session token. Throws LlmError on failure. */
+  login: (password: string) => Promise<void>;
+  logout: () => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [apiKey, setApiKey] = useState<string | null>(() => getApiKey());
+  const [authed, setAuthed] = useState<boolean>(() => isAuthenticated());
 
-  // Cross-tab sync: if the user clears the key in another tab, reflect it here.
   useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === 'llmviz.apiKey.v1') setApiKey(e.newValue);
+    // Cross-tab sync: reflect login/logout that happened in another tab.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SESSION_KEY) setAuthed(isAuthenticated());
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    // The proxy rejected our token mid-session (expired) — drop back to login.
+    const onUnauthorized = () => setAuthed(false);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    };
   }, []);
 
-  const saveApiKey = useCallback((key: string) => {
-    persistKey(key);
-    setApiKey(key);
+  const login = useCallback(async (password: string) => {
+    await doLogin(password);
+    setAuthed(true);
   }, []);
 
-  const removeApiKey = useCallback(() => {
-    clearApiKey();
-    setApiKey(null);
+  const logout = useCallback(() => {
+    doLogout();
+    setAuthed(false);
   }, []);
 
-  const value = useMemo(
-    () => ({ apiKey, saveApiKey, removeApiKey }),
-    [apiKey, saveApiKey, removeApiKey],
-  );
+  const value = useMemo(() => ({ authed, login, logout }), [authed, login, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

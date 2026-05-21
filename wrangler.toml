@@ -1,0 +1,11 @@
+name = "llm-visualizador"
+compatibility_date = "2025-05-01"
+pages_build_output_dir = "dist"
+
+# Secrets are NOT defined here. Set them as encrypted environment variables in
+# the Cloudflare Pages dashboard (Settings -> Environment variables):
+#   OPENAI_API_KEY     the shared OpenAI key (server-only, never shipped to the browser)
+#   WORKSHOP_PASSWORD  the password attendees type to enter
+#   SESSION_SECRET     (optional) HMAC signing secret; falls back to WORKSHOP_PASSWORD
+# Locally, the same values live in .dev.vars (gitignored) and are read automatically
+# by `wrangler pages dev`.

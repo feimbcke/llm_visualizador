@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { LlmError, streamText } from '../lib/llm';
+import { LlmError, streamText, TEMPERATURE_MODEL } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
@@ -24,7 +24,7 @@ const TEMP_PRESETS = [
 ];
 
 export function TemperatureModule({ tab, module }: ModuleProps) {
-  const { apiKey } = useApp();
+  const { authed } = useApp();
   const [input, setInput] = useState('');
   const [temperature, setTemperature] = useState(1.0);
   const [history, setHistory] = useState<Turn[]>([]);
@@ -41,7 +41,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
 
   async function sendSingle(textArg?: string) {
     const prompt = (textArg ?? input).trim();
-    if (!prompt || !apiKey || streaming) return;
+    if (!prompt || !authed || streaming) return;
     setInput('');
     setChatError(null);
     setHistory((h) => [...h, { prompt, response: '', temperature }]);
@@ -51,7 +51,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
 
     try {
       for await (const delta of streamText({
-        apiKey,
+        model: TEMPERATURE_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature },
         signal: ctrl.signal,
@@ -77,7 +77,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
 
   async function runCompare() {
     const prompt = comparePrompt.trim() || input.trim();
-    if (!prompt || !apiKey || compareRunning) return;
+    if (!prompt || !authed || compareRunning) return;
     setComparePrompt(prompt);
     setCompareTemp(temperature);
     setCompareSlots([
@@ -92,7 +92,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
     async function runOne(slotIndex: number) {
       try {
         for await (const delta of streamText({
-          apiKey: apiKey!,
+          model: TEMPERATURE_MODEL,
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: { temperature },
           signal: ctrl.signal,

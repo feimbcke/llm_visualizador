@@ -15,7 +15,7 @@ interface ModuleChatProps {
 }
 
 export function ModuleChat({ promptHint }: ModuleChatProps) {
-  const { apiKey } = useApp();
+  const { authed } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -24,7 +24,7 @@ export function ModuleChat({ promptHint }: ModuleChatProps) {
 
   async function send(textArg?: string) {
     const text = (textArg ?? input).trim();
-    if (!text || !apiKey || streaming) return;
+    if (!text || !authed || streaming) return;
 
     setError(null);
     setInput('');
@@ -45,7 +45,7 @@ export function ModuleChat({ promptHint }: ModuleChatProps) {
     abortRef.current = ctrl;
 
     try {
-      for await (const delta of streamText({ apiKey, contents, signal: ctrl.signal })) {
+      for await (const delta of streamText({ contents, signal: ctrl.signal })) {
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -91,7 +91,7 @@ export function ModuleChat({ promptHint }: ModuleChatProps) {
       <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div>
           <div className="font-semibold text-ink">Chat</div>
-          <div className="text-xs text-muted">Llama 3.3 70B (Groq) · respuesta en streaming</div>
+          <div className="text-xs text-muted">gpt-5-nano (OpenAI) · respuesta en streaming</div>
         </div>
         {messages.length > 0 && (
           <button type="button" onClick={reset} className="text-sm text-muted hover:text-ink">

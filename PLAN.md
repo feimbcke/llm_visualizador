@@ -25,6 +25,16 @@ A web app that runs alongside a 350-person live workshop. Each attendee opens th
 
 ## 3. Architecture decisions
 
+> **Update (2026-05-21): switched from BYOK to a single shared OpenAI key behind a server proxy.**
+> Sections 3.1–3.5 below describe the original BYOK/Groq design and are kept for history.
+> Current design: a Cloudflare Pages **Function** (`functions/api/chat.ts`) holds the shared
+> `OPENAI_API_KEY` secret server-side and proxies all model calls — the key never reaches the
+> browser. The site is **password-gated**: attendees enter `WORKSHOP_PASSWORD`, `/api/login`
+> returns a short-lived HMAC token, and every `/api/chat` call must present it. Default model is
+> `gpt-5-nano`; the temperature module uses `gpt-4.1-nano` (gpt-5-nano is a reasoning model and
+> rejects temperatures other than 1). The proxy clamps the model to a nano allowlist and caps
+> output tokens; set a hard budget limit in the OpenAI dashboard as a cost backstop.
+
 ### 3.1 BYOK over shared proxy
 **Decision:** Each attendee uses their own free Groq API key.
 **Why:** A shared backend with 1–10 keys for 300 concurrent users would exhaust the free daily quota in minutes, freezing the whole room together. BYOK gives each attendee their own quota (Groq free tier: 30 RPM / 14,400 RPD per user on Llama 3.3 70B) → linear scale, zero hosting cost, no shared failure mode.

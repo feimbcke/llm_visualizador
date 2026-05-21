@@ -10,7 +10,7 @@ interface Chunk {
 }
 
 export function StreamingModule({ tab, module }: ModuleProps) {
-  const { apiKey } = useApp();
+  const { authed } = useApp();
   const [input, setInput] = useState('');
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -27,7 +27,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
 
   async function run(textArg?: string) {
     const prompt = (textArg ?? input).trim();
-    if (!prompt || !apiKey || streaming) return;
+    if (!prompt || !authed || streaming) return;
     setInput('');
     setChunks([]);
     setError(null);
@@ -37,7 +37,6 @@ export function StreamingModule({ tab, module }: ModuleProps) {
     const t0 = performance.now();
     try {
       for await (const delta of streamText({
-        apiKey,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         signal: ctrl.signal,
       })) {

@@ -44,7 +44,7 @@ const PRESETS = [
 ];
 
 export function SystemPromptModule({ tab, module }: ModuleProps) {
-  const { apiKey } = useApp();
+  const { authed } = useApp();
   const [systemPrompt, setSystemPrompt] = useState(PRESETS[0].text);
   const [activePresetId, setActivePresetId] = useState<string | null>(PRESETS[0].id);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -72,7 +72,7 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
 
   async function send(textArg?: string) {
     const text = (textArg ?? input).trim();
-    if (!text || !apiKey || streaming) return;
+    if (!text || !authed || streaming) return;
     setInput('');
     setChatError(null);
     const next: Message[] = [
@@ -92,7 +92,6 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
 
     try {
       for await (const delta of streamText({
-        apiKey,
         contents,
         systemInstruction: systemPrompt,
         signal: ctrl.signal,
@@ -123,7 +122,7 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
     // Use the last user message if present, otherwise the input box
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.text;
     const text = (input.trim() || lastUser || '').trim();
-    if (!text || !apiKey || compareRunning) return;
+    if (!text || !authed || compareRunning) return;
     setComparePrompt(text);
     const slots: ComparisonResult[] = PRESETS.map((p) => ({
       presetLabel: p.label,
@@ -139,7 +138,6 @@ export function SystemPromptModule({ tab, module }: ModuleProps) {
     async function runOne(idx: number) {
       try {
         for await (const delta of streamText({
-          apiKey: apiKey!,
           contents: [{ role: 'user', parts: [{ text }] }],
           systemInstruction: slots[idx].systemPrompt,
           signal: ctrl.signal,

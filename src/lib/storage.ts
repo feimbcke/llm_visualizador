@@ -1,25 +1,26 @@
-const KEY = 'llmviz.apiKey.v1';
+/** localStorage key for the workshop session token (exported for cross-tab sync). */
+export const SESSION_KEY = 'llmviz.session.v1';
 const LAST_MODULE = 'llmviz.lastModule.v1';
 
-export function getApiKey(): string | null {
+export function getSessionToken(): string | null {
   try {
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(SESSION_KEY);
   } catch {
     return null;
   }
 }
 
-export function setApiKey(value: string): void {
+export function setSessionToken(value: string): void {
   try {
-    localStorage.setItem(KEY, value);
+    localStorage.setItem(SESSION_KEY, value);
   } catch {
     /* private mode or quota — ignore */
   }
 }
 
-export function clearApiKey(): void {
+export function clearSessionToken(): void {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(SESSION_KEY);
   } catch {
     /* ignore */
   }

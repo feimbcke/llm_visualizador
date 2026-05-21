@@ -1,12 +1,8 @@
-import { useApp } from '../state/AppContext';
-
 interface HeaderProps {
-  onChangeKey?: () => void;
+  onLogout?: () => void;
 }
 
-export function Header({ onChangeKey }: HeaderProps) {
-  const { apiKey } = useApp();
-
+export function Header({ onLogout }: HeaderProps) {
   return (
     <header className="bg-white border-b border-border">
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
@@ -19,17 +15,17 @@ export function Header({ onChangeKey }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {apiKey && onChangeKey && (
+          {onLogout && (
             <button
               type="button"
-              onClick={onChangeKey}
+              onClick={onLogout}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface transition-colors text-sm"
-              title="Cambiar clave de Groq"
+              title="Salir del taller"
             >
               <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-                <path d="M12.65 10A6 6 0 0 0 7 6a6 6 0 1 0 5.65 8H17v4h4v-4h2v-4H12.65zM7 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
+                <path d="M16 13v-2H7V8l-5 4 5 4v-3h9zM20 3h-8a2 2 0 0 0-2 2v4h2V5h8v14h-8v-4h-2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" />
               </svg>
-              <span className="hidden sm:inline">Cambiar clave</span>
+              <span className="hidden sm:inline">Salir</span>
             </button>
           )}
           <a
