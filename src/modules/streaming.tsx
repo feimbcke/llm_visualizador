@@ -1,30 +1,55 @@
 import { useEffect, useRef, useState } from 'react';
-import { LlmError, streamText, type Content } from '../lib/llm';
+import { LlmError, streamTokens, type Content } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
-interface Chunk {
+// gpt-4.1-nano (non-reasoning) is the only nano that exposes per-token
+// logprobs, which this module uses to color tokens by probability.
+const MODEL = 'gpt-4.1-nano';
+
+interface Tok {
   text: string;
+  /** linear probability 0–1 of this token */
+  prob: number;
+  alternatives: { token: string; prob: number }[];
   /** ms since this response's stream start */
   t: number;
 }
 
 interface Turn {
   question: string;
-  /** Streamed response tokens (each chunk approximates one or more tokens). */
-  chunks: Chunk[];
+  tokens: Tok[];
   done: boolean;
   error?: string;
 }
 
-/**
- * Rough visual approximation of how a tokenizer splits the user's text: each
- * word keeps its leading space, like the subword tokens a model emits. Real
- * tokenizers use BPE, so this is illustrative only — same caveat as the
- * streamed response chunks.
- */
+/** Rough visual approximation of how a tokenizer splits the user's text. */
 function approximateTokens(text: string): string[] {
   return text.match(/\s*\S+/g) ?? [];
+}
+
+/** Probability → background/border color: red (improbable) → green (probable). */
+function probStyle(prob: number): React.CSSProperties {
+  const h = Math.max(0, Math.min(120, prob * 120));
+  return {
+    backgroundColor: `hsl(${h}, 85%, 90%)`,
+    borderColor: `hsl(${h}, 55%, 70%)`,
+  };
+}
+
+function show(token: string): string {
+  return token.replace(/\n/g, '↵');
+}
+
+function tokenTitle(tok: Tok): string {
+  const lines = [`"${show(tok.text)}" · ${(tok.prob * 100).toFixed(1)}% probable`];
+  if (tok.alternatives.length > 0) {
+    lines.push('Alternativas:');
+    for (const a of tok.alternatives.slice(0, 3)) {
+      lines.push(`  "${show(a.token)}" ${(a.prob * 100).toFixed(1)}%`);
+    }
+  }
+  return lines.join('\n');
 }
 
 export function StreamingModule({ tab, module }: ModuleProps) {
@@ -35,10 +60,8 @@ export function StreamingModule({ tab, module }: ModuleProps) {
   const abortRef = useRef<AbortController | null>(null);
   const vizScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Count every token shown (question approximations + streamed response chunks)
-  // so the auto-scroll fires as the conversation grows.
   const totalTokens = turns.reduce(
-    (sum, t) => sum + approximateTokens(t.question).length + t.chunks.length,
+    (sum, t) => sum + approximateTokens(t.question).length + t.tokens.length,
     0,
   );
 
@@ -60,22 +83,30 @@ export function StreamingModule({ tab, module }: ModuleProps) {
     const contents: Content[] = [];
     for (const t of turns) {
       contents.push({ role: 'user', parts: [{ text: t.question }] });
-      const response = t.chunks.map((c) => c.text).join('');
+      const response = t.tokens.map((tok) => tok.text).join('');
       if (response) contents.push({ role: 'model', parts: [{ text: response }] });
     }
     contents.push({ role: 'user', parts: [{ text: prompt }] });
 
-    setTurns((prev) => [...prev, { question: prompt, chunks: [], done: false }]);
+    setTurns((prev) => [...prev, { question: prompt, tokens: [], done: false }]);
 
     const t0 = performance.now();
     try {
-      for await (const delta of streamText({ contents, signal: ctrl.signal })) {
+      for await (const ti of streamTokens({ model: MODEL, contents, signal: ctrl.signal })) {
         setTurns((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
           next[next.length - 1] = {
             ...last,
-            chunks: [...last.chunks, { text: delta, t: performance.now() - t0 }],
+            tokens: [
+              ...last.tokens,
+              {
+                text: ti.token,
+                prob: ti.prob,
+                alternatives: ti.alternatives,
+                t: performance.now() - t0,
+              },
+            ],
           };
           return next;
         });
@@ -115,10 +146,9 @@ export function StreamingModule({ tab, module }: ModuleProps) {
     }
   }
 
-  // Live speed for the response currently (or last) streaming.
-  const lastChunks = turns.length > 0 ? turns[turns.length - 1].chunks : [];
-  const lastT = lastChunks.length > 0 ? lastChunks[lastChunks.length - 1].t : 0;
-  const tokensPerSec = lastT > 0 ? (lastChunks.length / (lastT / 1000)).toFixed(1) : '0.0';
+  const lastTokens = turns.length > 0 ? turns[turns.length - 1].tokens : [];
+  const lastT = lastTokens.length > 0 ? lastTokens[lastTokens.length - 1].t : 0;
+  const tokensPerSec = lastT > 0 ? (lastTokens.length / (lastT / 1000)).toFixed(1) : '0.0';
 
   const ChatPane = (
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
@@ -151,7 +181,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
         )}
 
         {turns.map((turn, i) => {
-          const responseText = turn.chunks.map((c) => c.text).join('');
+          const responseText = turn.tokens.map((tok) => tok.text).join('');
           return (
             <div key={i} className="space-y-2">
               <div className="flex justify-end">
@@ -212,7 +242,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-semibold text-ink text-sm">Tokens</div>
-          <div className="text-xs text-muted">Tu pregunta y la respuesta, token a token</div>
+          <div className="text-xs text-muted">Coloreados por probabilidad · pasa el cursor para ver alternativas</div>
         </div>
         <div className="text-xs text-muted tabular-nums text-right shrink-0">
           <div>
@@ -243,37 +273,33 @@ export function StreamingModule({ tab, module }: ModuleProps) {
                   {questionTokens.map((tok, i) => (
                     <span
                       key={i}
-                      title={`#${i + 1} · ${tok.length} caracteres`}
                       className="inline-block px-1.5 py-0.5 rounded-md bg-surface border border-border text-ink text-xs font-mono whitespace-pre"
                     >
-                      {tok.replace(/\n/g, '↵')}
+                      {show(tok)}
                     </span>
                   ))}
                 </div>
               </div>
 
-              {(turn.chunks.length > 0 || turn.error) && (
+              {(turn.tokens.length > 0 || turn.error) && (
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">
-                    Modelo · {turn.chunks.length} tokens
+                    Modelo · {turn.tokens.length} tokens
                   </div>
                   {turn.error ? (
                     <div className="text-xs text-red-700">{turn.error}</div>
                   ) : (
                     <div className="flex flex-wrap gap-1 items-start content-start">
-                      {turn.chunks.map((c, i) => {
-                        const prevT = i > 0 ? turn.chunks[i - 1].t : 0;
-                        const delta = c.t - prevT;
-                        return (
-                          <span
-                            key={i}
-                            title={`#${i + 1} · +${Math.round(delta)} ms · ${c.text.length} caracteres`}
-                            className="inline-block px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-100 text-brand-700 text-xs font-mono whitespace-pre"
-                          >
-                            {c.text.replace(/\n/g, '↵')}
-                          </span>
-                        );
-                      })}
+                      {turn.tokens.map((tok, i) => (
+                        <span
+                          key={i}
+                          title={tokenTitle(tok)}
+                          style={probStyle(tok.prob)}
+                          className="inline-block px-1.5 py-0.5 rounded-md border text-ink text-xs font-mono whitespace-pre cursor-help"
+                        >
+                          {show(tok.text)}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -283,9 +309,20 @@ export function StreamingModule({ tab, module }: ModuleProps) {
         })}
       </div>
 
-      <div className="border-t border-border px-4 py-2 text-xs text-muted shrink-0">
-        Los tokens de tu pregunta son una aproximación; los de la respuesta son los fragmentos
-        reales del streaming. Ambos aproximan los tokens internos del modelo.
+      <div className="border-t border-border px-4 py-2 shrink-0 space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] text-muted">
+          <span>Improbable</span>
+          <span
+            className="h-2 flex-1 rounded-full"
+            style={{ background: 'linear-gradient(90deg, hsl(0,85%,80%), hsl(60,85%,80%), hsl(120,85%,80%))' }}
+          />
+          <span>Probable</span>
+        </div>
+        <p className="text-xs text-muted">
+          El color es la probabilidad que el modelo le dio a cada token al elegirlo. Pasa el cursor
+          sobre un token para ver las alternativas que consideró. (Los tokens de tu pregunta son una
+          aproximación.)
+        </p>
       </div>
     </div>
   );

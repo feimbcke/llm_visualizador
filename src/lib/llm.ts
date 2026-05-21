@@ -161,6 +161,10 @@ export interface StreamOptions {
   signal?: AbortSignal;
   /** Stop the stream after this many characters. Defaults to MAX_RESPONSE_CHARS. */
   maxChars?: number;
+  /** Request per-token log-probabilities (non-reasoning models only). */
+  logprobs?: boolean;
+  /** How many alternative tokens to return per position (0–5). Implies logprobs. */
+  topLogprobs?: number;
 }
 
 interface OpenAIMessage {
@@ -181,11 +185,27 @@ function toOpenAIMessages(contents: Content[], systemInstruction?: string): Open
   return msgs;
 }
 
+interface OpenAITokenLogprob {
+  token: string;
+  logprob: number;
+  top_logprobs?: Array<{ token: string; logprob: number }>;
+}
+
 interface OpenAIChunk {
   choices?: Array<{
     delta?: { content?: string; role?: string };
     finish_reason?: string | null;
+    logprobs?: { content?: OpenAITokenLogprob[] };
   }>;
+}
+
+/** A single generated token with its probability and the alternatives considered. */
+export interface TokenInfo {
+  token: string;
+  /** Linear probability 0–1 of the chosen token. */
+  prob: number;
+  /** Alternatives at this position (linear prob), as returned by the model. */
+  alternatives: { token: string; prob: number }[];
 }
 
 /**
@@ -202,6 +222,10 @@ export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<OpenA
   if (opts.model) body.model = opts.model;
   if (opts.generationConfig?.temperature !== undefined) {
     body.temperature = opts.generationConfig.temperature;
+  }
+  if (opts.logprobs || opts.topLogprobs !== undefined) {
+    body.logprobs = true;
+    if (opts.topLogprobs !== undefined) body.top_logprobs = opts.topLogprobs;
   }
 
   let res: Response;
@@ -276,5 +300,35 @@ export async function* streamText(opts: StreamOptions): AsyncGenerator<string> {
     }
     emitted += text.length;
     yield text;
+  }
+}
+
+/**
+ * Stream real tokens with their probabilities. Requires a non-reasoning model
+ * (the proxy drops logprobs for gpt-5*). Same char cap as streamText.
+ */
+export async function* streamTokens(opts: StreamOptions): AsyncGenerator<TokenInfo> {
+  const cap = opts.maxChars ?? MAX_RESPONSE_CHARS;
+  let emitted = 0;
+  const withLogprobs: StreamOptions = { ...opts, logprobs: true, topLogprobs: opts.topLogprobs ?? 3 };
+  for await (const chunk of streamGenerate(withLogprobs)) {
+    const content = chunk.choices?.[0]?.logprobs?.content;
+    if (!content) continue;
+    for (const t of content) {
+      const token = t.token ?? '';
+      if (!token) continue;
+      const info: TokenInfo = {
+        token,
+        prob: Math.exp(t.logprob),
+        alternatives: (t.top_logprobs ?? []).map((a) => ({ token: a.token, prob: Math.exp(a.logprob) })),
+      };
+      const remaining = cap - emitted;
+      if (token.length >= remaining) {
+        if (remaining > 0) yield { ...info, token: token.slice(0, remaining) };
+        return;
+      }
+      emitted += token.length;
+      yield info;
+    }
   }
 }

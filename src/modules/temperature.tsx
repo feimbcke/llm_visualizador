@@ -1,12 +1,24 @@
 import { useRef, useState } from 'react';
-import { LlmError, streamText, TEMPERATURE_MODEL } from '../lib/llm';
+import { LlmError, streamTokens, TEMPERATURE_MODEL } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
-interface CompareSlot {
+interface SlotToken {
   text: string;
+  /** linear probability 0–1 the model gave this token */
+  prob: number;
+}
+
+interface CompareSlot {
+  tokens: SlotToken[];
   done: boolean;
   error?: string;
+}
+
+/** Probability → light background tint: red (improbable) → green (probable). */
+function tint(prob: number): React.CSSProperties {
+  const h = Math.max(0, Math.min(120, prob * 120));
+  return { backgroundColor: `hsl(${h}, 85%, 90%)` };
 }
 
 const TEMP_PRESETS = [
@@ -34,9 +46,9 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
     setResultPrompt(prompt);
     setResultTemp(temperature);
     setSlots([
-      { text: '', done: false },
-      { text: '', done: false },
-      { text: '', done: false },
+      { tokens: [], done: false },
+      { tokens: [], done: false },
+      { tokens: [], done: false },
     ]);
     setRunning(true);
     const ctrl = new AbortController();
@@ -44,7 +56,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
 
     async function runOne(slotIndex: number) {
       try {
-        for await (const delta of streamText({
+        for await (const ti of streamTokens({
           model: TEMPERATURE_MODEL,
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: { temperature },
@@ -52,7 +64,11 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
         })) {
           setSlots((s) => {
             const next = [...s];
-            next[slotIndex] = { ...next[slotIndex], text: next[slotIndex].text + delta };
+            const slot = next[slotIndex];
+            next[slotIndex] = {
+              ...slot,
+              tokens: [...slot.tokens, { text: ti.token, prob: ti.prob }],
+            };
             return next;
           });
         }
@@ -206,8 +222,19 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
                   </div>
                   {slot.error ? (
                     <div className="text-red-700">{slot.error}</div>
+                  ) : slot.tokens.length > 0 ? (
+                    slot.tokens.map((tok, k) => (
+                      <span
+                        key={k}
+                        style={tint(tok.prob)}
+                        title={`${(tok.prob * 100).toFixed(1)}% probable`}
+                        className="rounded-sm"
+                      >
+                        {tok.text}
+                      </span>
+                    ))
                   ) : (
-                    slot.text || <span className="text-muted italic">…</span>
+                    <span className="text-muted italic">…</span>
                   )}
                 </div>
               ))}
@@ -216,10 +243,20 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
         )}
       </div>
 
-      <div className="border-t border-border px-4 py-2 text-xs text-muted shrink-0">
-        Las tres respuestas usan la misma pregunta y la misma temperatura. Las diferencias vienen del
-        muestreo aleatorio al generar cada token. Incluso en temperatura 0 pueden aparecer pequeñas
-        diferencias: el servicio no es 100% determinista.
+      <div className="border-t border-border px-4 py-2 shrink-0 space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] text-muted">
+          <span>Improbable</span>
+          <span
+            className="h-2 flex-1 rounded-full"
+            style={{ background: 'linear-gradient(90deg, hsl(0,85%,80%), hsl(60,85%,80%), hsl(120,85%,80%))' }}
+          />
+          <span>Probable</span>
+        </div>
+        <p className="text-xs text-muted">
+          Cada token está teñido por la probabilidad que el modelo le dio. Con temperatura alta verás
+          más tokens improbables (rojizos): por eso las respuestas divergen. Incluso en temperatura 0
+          pueden aparecer pequeñas diferencias: el servicio no es 100% determinista.
+        </p>
       </div>
     </div>
   );

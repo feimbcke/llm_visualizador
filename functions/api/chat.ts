@@ -33,6 +33,8 @@ interface IncomingBody {
   model?: string;
   messages?: IncomingMessage[];
   temperature?: number;
+  logprobs?: boolean;
+  top_logprobs?: number;
 }
 
 function json(data: unknown, status = 200): Response {
@@ -77,6 +79,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     upstream.max_tokens = MAX_OUTPUT_TOKENS;
     if (typeof body.temperature === 'number' && Number.isFinite(body.temperature)) {
       upstream.temperature = Math.max(0, Math.min(2, body.temperature));
+    }
+    // logprobs are only supported on non-reasoning models (gpt-5* rejects them).
+    if (body.logprobs) {
+      upstream.logprobs = true;
+      if (typeof body.top_logprobs === 'number' && Number.isFinite(body.top_logprobs)) {
+        upstream.top_logprobs = Math.max(0, Math.min(5, Math.floor(body.top_logprobs)));
+      }
     }
   }
 
