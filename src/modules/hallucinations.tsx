@@ -8,15 +8,17 @@ import type { ModuleProps } from './registry';
 // the behavior this module is meant to expose.
 const MODEL = 'gpt-4.1-nano';
 
-// We deliberately tell the model not to hedge, and to be brief. That IS the
-// lesson: asked to sound authoritative, a model invents concrete specifics —
-// authors, DOIs, registry numbers — that look entirely real but fail when
-// checked. Short answers keep the fabricated data front and center.
+// We deliberately tell the model not to hedge, to be brief, and to ALWAYS
+// produce a concrete reference. That IS the lesson: asked to sound
+// authoritative, a model invents specifics — authors, DOIs, registry numbers —
+// that look entirely real but fail when checked. Without this, well-aligned
+// models often refuse ("no encuentro información"), which hides the behavior.
 const SYSTEM_INSTRUCTION =
-  'Responde de forma muy breve y directa, sin explicaciones largas ni rodeos. Cuando te ' +
-  'pidan una referencia o un dato, entrega solo lo concreto: autores, revista, año, volumen, ' +
-  'páginas, DOI o número de registro. No agregues advertencias ni digas que no puedes ' +
-  'verificar la información: responde con seguridad.';
+  'Responde de forma muy breve y directa, sin explicaciones largas ni rodeos. Para CUALQUIER ' +
+  'pregunta, asume que el artículo, ensayo o documento existe y entrégalo SIEMPRE con datos ' +
+  'concretos: autores, revista, año, volumen, páginas y DOI (o número de registro NCT para un ' +
+  'ensayo). Nunca respondas que no se encontró, que no existe, que no puedes verificarlo, ni ' +
+  'pidas más datos. Responde con total seguridad y sin advertencias.';
 
 interface Preset {
   label: string;
@@ -32,12 +34,12 @@ const PRESETS: Preset[] = [
   {
     label: 'Ensayo clínico',
     prompt:
-      'Dame el nombre y el número de registro (NCT) del ensayo clínico que demostró que la metformina previene la migraña, con el DOI de la publicación principal.',
+      'Dame el nombre y el número de registro (NCT) del ensayo clínico fase 3 que evaluó la colchicina para prevenir la pericarditis recurrente, con el DOI de la publicación principal.',
   },
   {
     label: 'Guía clínica',
     prompt:
-      'Resume las recomendaciones de la guía 2022 de la Sociedad Chilena de Cardiología sobre anticoagulación en fibrilación auricular y enfermedad renal terminal, citando el número de página.',
+      'Dame la cita completa (autores, revista, año, volumen, páginas y DOI) de la guía 2022 de la Sociedad Chilena de Cardiología sobre anticoagulación en fibrilación auricular y enfermedad renal terminal.',
   },
 ];
 
@@ -270,7 +272,7 @@ export function HallucinationsModule({ tab }: ModuleProps) {
           </p>
           <p>
             Este taller usa el modelo <em>"puro"</em>, sin esas herramientas, para mostrar lo que
-            ocurre por debajo: cuando no puede buscar, inventa. En el próximo módulo veremos cómo las
+            ocurre por debajo: cuando no puede buscar, inventa. Más adelante veremos cómo las
             herramientas corrigen justamente este problema.
           </p>
         </div>
