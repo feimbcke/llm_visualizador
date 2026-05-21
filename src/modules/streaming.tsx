@@ -1,50 +1,98 @@
 import { useEffect, useRef, useState } from 'react';
-import { LlmError, streamText } from '../lib/llm';
+import { LlmError, streamText, type Content } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
 interface Chunk {
   text: string;
-  /** ms since stream start */
+  /** ms since this response's stream start */
   t: number;
+}
+
+interface Turn {
+  question: string;
+  /** Streamed response tokens (each chunk approximates one or more tokens). */
+  chunks: Chunk[];
+  done: boolean;
+  error?: string;
+}
+
+/**
+ * Rough visual approximation of how a tokenizer splits the user's text: each
+ * word keeps its leading space, like the subword tokens a model emits. Real
+ * tokenizers use BPE, so this is illustrative only — same caveat as the
+ * streamed response chunks.
+ */
+function approximateTokens(text: string): string[] {
+  return text.match(/\s*\S+/g) ?? [];
 }
 
 export function StreamingModule({ tab, module }: ModuleProps) {
   const { authed } = useApp();
   const [input, setInput] = useState('');
-  const [chunks, setChunks] = useState<Chunk[]>([]);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [streaming, setStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const vizScrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Count every token shown (question approximations + streamed response chunks)
+  // so the auto-scroll fires as the conversation grows.
+  const totalTokens = turns.reduce(
+    (sum, t) => sum + approximateTokens(t.question).length + t.chunks.length,
+    0,
+  );
+
   useEffect(() => {
-    // auto-scroll the chip area as new fragments arrive
     if (vizScrollRef.current) {
       vizScrollRef.current.scrollTop = vizScrollRef.current.scrollHeight;
     }
-  }, [chunks.length]);
+  }, [totalTokens]);
 
   async function run(textArg?: string) {
     const prompt = (textArg ?? input).trim();
     if (!prompt || !authed || streaming) return;
     setInput('');
-    setChunks([]);
-    setError(null);
     setStreaming(true);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+
+    // Send the whole conversation so the model keeps context across turns.
+    const contents: Content[] = [];
+    for (const t of turns) {
+      contents.push({ role: 'user', parts: [{ text: t.question }] });
+      const response = t.chunks.map((c) => c.text).join('');
+      if (response) contents.push({ role: 'model', parts: [{ text: response }] });
+    }
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+    setTurns((prev) => [...prev, { question: prompt, chunks: [], done: false }]);
+
     const t0 = performance.now();
     try {
-      for await (const delta of streamText({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        signal: ctrl.signal,
-      })) {
-        setChunks((prev) => [...prev, { text: delta, t: performance.now() - t0 }]);
+      for await (const delta of streamText({ contents, signal: ctrl.signal })) {
+        setTurns((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          next[next.length - 1] = {
+            ...last,
+            chunks: [...last.chunks, { text: delta, t: performance.now() - t0 }],
+          };
+          return next;
+        });
       }
+      setTurns((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { ...next[next.length - 1], done: true };
+        return next;
+      });
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setError(err instanceof LlmError ? err.userMessage : 'Algo falló al generar.');
+        const msg = err instanceof LlmError ? err.userMessage : 'Algo falló al generar.';
+        setTurns((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], done: true, error: msg };
+          return next;
+        });
       }
     } finally {
       setStreaming(false);
@@ -57,8 +105,7 @@ export function StreamingModule({ tab, module }: ModuleProps) {
   }
 
   function reset() {
-    setChunks([]);
-    setError(null);
+    setTurns([]);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -68,32 +115,29 @@ export function StreamingModule({ tab, module }: ModuleProps) {
     }
   }
 
-  const fullText = chunks.map((c) => c.text).join('');
-  const lastT = chunks.length > 0 ? chunks[chunks.length - 1].t : 0;
-  const tokensPerSec = lastT > 0 ? (chunks.length / (lastT / 1000)).toFixed(1) : '0.0';
+  // Live speed for the response currently (or last) streaming.
+  const lastChunks = turns.length > 0 ? turns[turns.length - 1].chunks : [];
+  const lastT = lastChunks.length > 0 ? lastChunks[lastChunks.length - 1].t : 0;
+  const tokensPerSec = lastT > 0 ? (lastChunks.length / (lastT / 1000)).toFixed(1) : '0.0';
 
   const ChatPane = (
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
         <div>
-          <div className="font-semibold text-ink text-sm">Respuesta</div>
+          <div className="font-semibold text-ink text-sm">Conversación</div>
           <div className="text-xs text-muted">Así la verías en un chat</div>
         </div>
-        {chunks.length > 0 && !streaming && (
-          <button
-            type="button"
-            onClick={reset}
-            className="text-xs text-muted hover:text-ink"
-          >
+        {turns.length > 0 && !streaming && (
+          <button type="button" onClick={reset} className="text-xs text-muted hover:text-ink">
             Limpiar
           </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
-        {chunks.length === 0 && !streaming && (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+        {turns.length === 0 && !streaming && (
           <div className="text-center text-sm text-muted py-6 space-y-3">
-            <p>Haz una pregunta y observa cómo se construye la respuesta fragmento a fragmento.</p>
+            <p>Haz una pregunta y observa cómo se construye la respuesta token a token.</p>
             {module.promptHint && (
               <button
                 type="button"
@@ -106,17 +150,27 @@ export function StreamingModule({ tab, module }: ModuleProps) {
           </div>
         )}
 
-        {(chunks.length > 0 || streaming) && (
-          <div className="max-w-[90%] bg-surface border border-border text-body rounded-2xl rounded-tl-sm px-4 py-2.5 whitespace-pre-wrap">
-            {fullText || <span className="text-muted italic">…</span>}
-          </div>
-        )}
-
-        {error && (
-          <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
-            {error}
-          </div>
-        )}
+        {turns.map((turn, i) => {
+          const responseText = turn.chunks.map((c) => c.text).join('');
+          return (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-end">
+                <div className="max-w-[85%] bg-brand-500 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 whitespace-pre-wrap">
+                  {turn.question}
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="max-w-[85%] bg-surface border border-border text-body rounded-2xl rounded-tl-sm px-4 py-2.5 whitespace-pre-wrap">
+                  {turn.error ? (
+                    <span className="text-red-700">{turn.error}</span>
+                  ) : (
+                    responseText || <span className="text-muted italic">…</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="border-t border-border p-3 bg-white shrink-0">
@@ -157,12 +211,12 @@ export function StreamingModule({ tab, module }: ModuleProps) {
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="font-semibold text-ink text-sm">Fragmentos entrantes</div>
-          <div className="text-xs text-muted">Cada paquete que envía el modelo</div>
+          <div className="font-semibold text-ink text-sm">Tokens</div>
+          <div className="text-xs text-muted">Tu pregunta y la respuesta, token a token</div>
         </div>
         <div className="text-xs text-muted tabular-nums text-right shrink-0">
           <div>
-            <strong className="text-ink">{chunks.length}</strong> fragmentos
+            <strong className="text-ink">{totalTokens}</strong> tokens
           </div>
           <div>
             {Math.round(lastT)} ms · {tokensPerSec}/s
@@ -170,35 +224,68 @@ export function StreamingModule({ tab, module }: ModuleProps) {
         </div>
       </div>
 
-      <div ref={vizScrollRef} className="flex-1 overflow-y-auto p-4 min-h-0">
-        {chunks.length === 0 && !streaming && (
+      <div ref={vizScrollRef} className="flex-1 overflow-y-auto p-4 min-h-0 space-y-4">
+        {turns.length === 0 && !streaming && (
           <div className="text-center text-sm text-muted py-6">
-            Aún no hay fragmentos. Envía una pregunta para verlos llegar uno a uno.
+            Aún no hay tokens. Envía una pregunta para verlos llegar uno a uno.
           </div>
         )}
 
-        {chunks.length > 0 && (
-          <div className="flex flex-wrap gap-1 items-start content-start">
-            {chunks.map((c, i) => {
-              const prevT = i > 0 ? chunks[i - 1].t : 0;
-              const delta = c.t - prevT;
-              return (
-                <span
-                  key={i}
-                  title={`#${i + 1} · +${Math.round(delta)} ms · ${c.text.length} caracteres`}
-                  className="inline-block px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-100 text-brand-700 text-xs font-mono whitespace-pre"
-                >
-                  {c.text.replace(/\n/g, '↵')}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {turns.map((turn, ti) => {
+          const questionTokens = approximateTokens(turn.question);
+          return (
+            <div key={ti} className="space-y-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">
+                  Tú · {questionTokens.length} tokens
+                </div>
+                <div className="flex flex-wrap gap-1 items-start content-start">
+                  {questionTokens.map((tok, i) => (
+                    <span
+                      key={i}
+                      title={`#${i + 1} · ${tok.length} caracteres`}
+                      className="inline-block px-1.5 py-0.5 rounded-md bg-surface border border-border text-ink text-xs font-mono whitespace-pre"
+                    >
+                      {tok.replace(/\n/g, '↵')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {(turn.chunks.length > 0 || turn.error) && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">
+                    Modelo · {turn.chunks.length} tokens
+                  </div>
+                  {turn.error ? (
+                    <div className="text-xs text-red-700">{turn.error}</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 items-start content-start">
+                      {turn.chunks.map((c, i) => {
+                        const prevT = i > 0 ? turn.chunks[i - 1].t : 0;
+                        const delta = c.t - prevT;
+                        return (
+                          <span
+                            key={i}
+                            title={`#${i + 1} · +${Math.round(delta)} ms · ${c.text.length} caracteres`}
+                            className="inline-block px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-100 text-brand-700 text-xs font-mono whitespace-pre"
+                          >
+                            {c.text.replace(/\n/g, '↵')}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="border-t border-border px-4 py-2 text-xs text-muted shrink-0">
-        Los fragmentos del streaming aproximan los tokens reales del modelo. Cada chip representa
-        el texto recibido en un paso del envío.
+        Los tokens de tu pregunta son una aproximación; los de la respuesta son los fragmentos
+        reales del streaming. Ambos aproximan los tokens internos del modelo.
       </div>
     </div>
   );
