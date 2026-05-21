@@ -105,7 +105,7 @@ export function WorkshopShell() {
       {/* Main content area: split on lg+, single tab on mobile.
           The module component renders BOTH panes; we key on module.id so
           switching modules unmounts and re-mounts (isolated per-module state). */}
-      <div className="flex-1 min-h-0 max-w-6xl w-full mx-auto px-4 py-4 sm:py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-6xl mx-auto px-4 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:h-full min-h-[480px]">
           <ModuleBody key={module.id} module={module} tab={tab} />
         </div>
