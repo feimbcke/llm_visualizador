@@ -19,6 +19,24 @@ export const DEFAULT_MODEL = 'gpt-5-nano';
 /** Module 2 (temperatura) needs a model that accepts a custom temperature. */
 export const TEMPERATURE_MODEL = 'gpt-4.1-nano';
 
+/**
+ * Default system prompt for modules that don't set their own. Keeps demo
+ * answers short and readable on phones. The system-prompt module (Module 4)
+ * deliberately passes its own instruction, so this never overrides it — that
+ * module's whole point is that the visible system prompt is the only one.
+ */
+export const DEFAULT_SYSTEM_INSTRUCTION =
+  'Eres un asistente para un taller sobre modelos de lenguaje en el ámbito de la salud. ' +
+  'Responde de forma concisa y directa, en español, salvo que se te indique lo contrario.';
+
+/**
+ * Hard cap on characters emitted per response. When reached, streamText stops
+ * consuming and cancels the network stream, so a runaway answer can't drag on.
+ * Tighter and more predictable than the server-side token cap. Override per
+ * call with StreamOptions.maxChars.
+ */
+export const MAX_RESPONSE_CHARS = 2000;
+
 export class LlmError extends Error {
   status: number;
   /** Spanish, user-facing */
@@ -141,6 +159,8 @@ export interface StreamOptions {
   systemInstruction?: string;
   generationConfig?: GenerationConfig;
   signal?: AbortSignal;
+  /** Stop the stream after this many characters. Defaults to MAX_RESPONSE_CHARS. */
+  maxChars?: number;
 }
 
 interface OpenAIMessage {
@@ -173,7 +193,10 @@ interface OpenAIChunk {
  * this code — we send the session token; the Function injects the real key.
  */
 export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<OpenAIChunk> {
-  const messages = toOpenAIMessages(opts.contents, opts.systemInstruction);
+  const messages = toOpenAIMessages(
+    opts.contents,
+    opts.systemInstruction ?? DEFAULT_SYSTEM_INSTRUCTION,
+  );
 
   const body: Record<string, unknown> = { messages, stream: true };
   if (opts.model) body.model = opts.model;
@@ -210,23 +233,29 @@ export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<OpenA
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let nlIndex: number;
-    while ((nlIndex = buffer.indexOf('\n')) !== -1) {
-      const line = buffer.slice(0, nlIndex).trimEnd();
-      buffer = buffer.slice(nlIndex + 1);
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (!data || data === '[DONE]') continue;
-      try {
-        yield JSON.parse(data) as OpenAIChunk;
-      } catch {
-        /* skip malformed chunk */
+  // finally{} runs when the consumer stops early (e.g. streamText hits its
+  // char cap and returns), cancelling the network read so the request stops.
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nlIndex: number;
+      while ((nlIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nlIndex).trimEnd();
+        buffer = buffer.slice(nlIndex + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          yield JSON.parse(data) as OpenAIChunk;
+        } catch {
+          /* skip malformed chunk */
+        }
       }
     }
+  } finally {
+    reader.cancel().catch(() => {});
   }
 }
 
@@ -234,8 +263,18 @@ export async function* streamGenerate(opts: StreamOptions): AsyncGenerator<OpenA
  * Convenience: yield only the text deltas as they arrive.
  */
 export async function* streamText(opts: StreamOptions): AsyncGenerator<string> {
+  const cap = opts.maxChars ?? MAX_RESPONSE_CHARS;
+  let emitted = 0;
   for await (const chunk of streamGenerate(opts)) {
     const text = chunk.choices?.[0]?.delta?.content;
-    if (text) yield text;
+    if (!text) continue;
+    const remaining = cap - emitted;
+    if (text.length >= remaining) {
+      // Last fragment: trim to the cap, emit it, then stop the whole stream.
+      if (remaining > 0) yield text.slice(0, remaining);
+      return;
+    }
+    emitted += text.length;
+    yield text;
   }
 }

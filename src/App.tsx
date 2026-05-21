@@ -7,20 +7,20 @@ function AppShell() {
   const { authed, logout } = useApp();
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-surface lg:overflow-hidden">
       <Header onLogout={authed ? logout : undefined} />
 
       {authed ? (
         <WorkshopShell />
       ) : (
-        <main className="flex-1">
+        <main className="flex-1 min-h-0 lg:overflow-y-auto">
           <Login />
         </main>
       )}
 
-      <footer className="border-t border-border bg-white">
+      <footer className="shrink-0 border-t border-border bg-white">
         <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-muted">
-          Taller · Modelos de Lenguaje en Salud · Clínica Alemana
+          Taller · Modelos de Lenguaje en Salud
         </div>
       </footer>
     </div>

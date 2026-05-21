@@ -3,12 +3,6 @@ import { LlmError, streamText, TEMPERATURE_MODEL } from '../lib/llm';
 import { useApp } from '../state/AppContext';
 import type { ModuleProps } from './registry';
 
-interface Turn {
-  prompt: string;
-  response: string;
-  temperature: number;
-}
-
 interface CompareSlot {
   text: string;
   done: boolean;
@@ -27,67 +21,26 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
   const { authed } = useApp();
   const [input, setInput] = useState('');
   const [temperature, setTemperature] = useState(1.0);
-  const [history, setHistory] = useState<Turn[]>([]);
-  const [streaming, setStreaming] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-  const chatAbortRef = useRef<AbortController | null>(null);
+  const [running, setRunning] = useState(false);
+  // What the currently shown results were generated with.
+  const [resultPrompt, setResultPrompt] = useState('');
+  const [resultTemp, setResultTemp] = useState(1.0);
+  const [slots, setSlots] = useState<CompareSlot[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // 3-up comparison state
-  const [compareRunning, setCompareRunning] = useState(false);
-  const [comparePrompt, setComparePrompt] = useState('');
-  const [compareTemp, setCompareTemp] = useState(1.0);
-  const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([]);
-  const compareAbortRef = useRef<AbortController | null>(null);
-
-  async function sendSingle(textArg?: string) {
+  async function generate(textArg?: string) {
     const prompt = (textArg ?? input).trim();
-    if (!prompt || !authed || streaming) return;
-    setInput('');
-    setChatError(null);
-    setHistory((h) => [...h, { prompt, response: '', temperature }]);
-    setStreaming(true);
-    const ctrl = new AbortController();
-    chatAbortRef.current = ctrl;
-
-    try {
-      for await (const delta of streamText({
-        model: TEMPERATURE_MODEL,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature },
-        signal: ctrl.signal,
-      })) {
-        setHistory((h) => {
-          const next = [...h];
-          next[next.length - 1] = {
-            ...next[next.length - 1],
-            response: next[next.length - 1].response + delta,
-          };
-          return next;
-        });
-      }
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        setChatError(err instanceof LlmError ? err.userMessage : 'Algo falló al generar.');
-      }
-    } finally {
-      setStreaming(false);
-      chatAbortRef.current = null;
-    }
-  }
-
-  async function runCompare() {
-    const prompt = comparePrompt.trim() || input.trim();
-    if (!prompt || !authed || compareRunning) return;
-    setComparePrompt(prompt);
-    setCompareTemp(temperature);
-    setCompareSlots([
+    if (!prompt || !authed || running) return;
+    setResultPrompt(prompt);
+    setResultTemp(temperature);
+    setSlots([
       { text: '', done: false },
       { text: '', done: false },
       { text: '', done: false },
     ]);
-    setCompareRunning(true);
+    setRunning(true);
     const ctrl = new AbortController();
-    compareAbortRef.current = ctrl;
+    abortRef.current = ctrl;
 
     async function runOne(slotIndex: number) {
       try {
@@ -97,13 +50,13 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
           generationConfig: { temperature },
           signal: ctrl.signal,
         })) {
-          setCompareSlots((s) => {
+          setSlots((s) => {
             const next = [...s];
             next[slotIndex] = { ...next[slotIndex], text: next[slotIndex].text + delta };
             return next;
           });
         }
-        setCompareSlots((s) => {
+        setSlots((s) => {
           const next = [...s];
           next[slotIndex] = { ...next[slotIndex], done: true };
           return next;
@@ -111,7 +64,7 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           const msg = err instanceof LlmError ? err.userMessage : 'Error';
-          setCompareSlots((s) => {
+          setSlots((s) => {
             const next = [...s];
             next[slotIndex] = { ...next[slotIndex], done: true, error: msg };
             return next;
@@ -121,173 +74,135 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
     }
 
     await Promise.all([runOne(0), runOne(1), runOne(2)]);
-    setCompareRunning(false);
-    compareAbortRef.current = null;
+    setRunning(false);
+    abortRef.current = null;
   }
 
-  function stopAll() {
-    chatAbortRef.current?.abort();
-    compareAbortRef.current?.abort();
+  function stop() {
+    abortRef.current?.abort();
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      void sendSingle();
+      void generate();
     }
   }
 
-  const ChatPane = (
+  const ControlsPane = (
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
-      <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-semibold text-ink text-sm">Chat con temperatura</div>
-          <div className="text-xs text-muted">
-            Repite la misma pregunta para ver cuánto cambia la respuesta
-          </div>
+      <div className="px-4 py-3 border-b border-border shrink-0">
+        <div className="font-semibold text-ink text-sm">Prueba la temperatura</div>
+        <div className="text-xs text-muted">
+          Escribe una pregunta, ajusta la temperatura y genera tres respuestas
         </div>
-        {history.length > 0 && !streaming && (
-          <button
-            type="button"
-            onClick={() => setHistory([])}
-            className="text-xs text-muted hover:text-ink shrink-0"
-          >
-            Limpiar
-          </button>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {history.length === 0 && !streaming && (
-          <div className="text-center text-sm text-muted py-6 space-y-3">
-            <p>Ajusta la temperatura y envía la misma pregunta varias veces.</p>
-            {module.promptHint && (
-              <button
-                type="button"
-                onClick={() => void sendSingle(module.promptHint!)}
-                className="inline-block text-left px-3 py-2 rounded-lg bg-surface border border-border text-body italic hover:bg-brand-50 hover:border-brand-100 transition-colors"
-              >
-                "{module.promptHint}"
-              </button>
-            )}
-          </div>
-        )}
+        {/* Help: what temperature actually does */}
+        <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 text-sm text-ink">
+          <p className="mb-2">
+            <strong>¿Qué es la temperatura?</strong> Es cuánta aleatoriedad usa el modelo al elegir
+            cada palabra. En cada paso el modelo tiene varias opciones posibles con distinta
+            probabilidad.
+          </p>
+          <ul className="space-y-1 text-body list-disc list-inside marker:text-brand-500">
+            <li>
+              <strong>Temperatura 0:</strong> elige casi siempre la palabra más probable → respuestas
+              muy parecidas entre sí.
+            </li>
+            <li>
+              <strong>Temperatura 2</strong> (el máximo): reparte la elección entre más opciones →
+              respuestas mucho más variadas e impredecibles.
+            </li>
+          </ul>
+          <p className="text-muted mt-2">
+            Genera tres respuestas a la misma pregunta y observa cuánto se parecen según la
+            temperatura que elijas.
+          </p>
+        </div>
 
-        {history.map((turn, i) => (
-          <div key={i} className="space-y-2">
-            <div className="flex justify-end">
-              <div className="max-w-[85%] bg-brand-500 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 whitespace-pre-wrap">
-                {turn.prompt}
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="max-w-[85%] bg-surface border border-border text-body rounded-2xl rounded-tl-sm px-4 py-2.5 whitespace-pre-wrap">
-                <div className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">
-                  temperatura {turn.temperature.toFixed(1)}
-                </div>
-                {turn.response || <span className="text-muted italic">…</span>}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {chatError && (
-          <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-            {chatError}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-border p-3 bg-white shrink-0 space-y-2">
-        <TemperatureSlider value={temperature} onChange={setTemperature} disabled={streaming} />
-        <div className="flex gap-2 items-end">
+        {/* Question */}
+        <div>
+          <label htmlFor="temp-q" className="text-xs font-medium text-ink">
+            Tu pregunta
+          </label>
           <textarea
+            id="temp-q"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Escribe tu pregunta…"
-            rows={1}
-            className="flex-1 resize-none px-3 py-2 rounded-lg border border-border bg-white text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm max-h-32"
-            disabled={streaming}
+            rows={3}
+            className="mt-1 w-full resize-none px-3 py-2 rounded-lg border border-border bg-white text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm"
+            disabled={running}
           />
-          {streaming ? (
+          {module.promptHint && !input && (
             <button
               type="button"
-              onClick={stopAll}
-              className="px-4 py-2 rounded-lg border border-border text-ink hover:bg-surface font-medium text-sm shrink-0"
+              onClick={() => setInput(module.promptHint!)}
+              className="mt-2 inline-block text-left px-3 py-2 rounded-lg bg-surface border border-border text-body italic text-sm hover:bg-brand-50 hover:border-brand-100 transition-colors"
             >
-              Detener
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void sendSingle()}
-              disabled={!input.trim()}
-              className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
-            >
-              Enviar
+              "{module.promptHint}"
             </button>
           )}
         </div>
+
+        {/* Temperature slider */}
+        <TemperatureSlider value={temperature} onChange={setTemperature} disabled={running} />
+      </div>
+
+      <div className="border-t border-border p-3 bg-white shrink-0">
+        {running ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="w-full px-4 py-2.5 rounded-lg border border-border text-ink hover:bg-surface font-medium text-sm"
+          >
+            Detener
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={!input.trim()}
+            className="w-full px-4 py-2.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+          >
+            Generar 3 respuestas con temperatura {temperature.toFixed(1)}
+          </button>
+        )}
       </div>
     </div>
   );
 
-  const VizPane = (
+  const ResultsPane = (
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
-      <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-semibold text-ink text-sm">Tres respuestas, misma pregunta</div>
-          <div className="text-xs text-muted">
-            Cuánto se parecen depende de la temperatura
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={compareRunning ? stopAll : runCompare}
-          disabled={!input.trim() && !comparePrompt.trim() && !compareRunning}
-          className={
-            compareRunning
-              ? 'px-3 py-1.5 rounded-lg border border-border text-ink hover:bg-surface text-sm font-medium shrink-0'
-              : 'px-3 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shrink-0'
-          }
-        >
-          {compareRunning ? 'Detener' : 'Generar 3 respuestas'}
-        </button>
+      <div className="px-4 py-3 border-b border-border shrink-0">
+        <div className="font-semibold text-ink text-sm">Tres respuestas, misma pregunta</div>
+        <div className="text-xs text-muted">Cuánto se parecen depende de la temperatura</div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 min-h-0 space-y-3">
-        {compareSlots.length === 0 && (
-          <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 text-sm text-ink">
-            <p className="mb-2">
-              <strong>La temperatura</strong> controla qué tan "creativo" es el modelo al elegir cada
-              token. Con temperatura <strong>0</strong> casi siempre elige la palabra más probable;
-              con temperatura <strong>2</strong> elige con mucha más aleatoriedad.
-            </p>
-            <p className="text-muted">
-              Escribe una pregunta en el chat (o usa la sugerencia) y presiona "Generar 3
-              respuestas" para comparar tres salidas independientes con la temperatura actual.
-            </p>
+        {slots.length === 0 ? (
+          <div className="text-center text-sm text-muted py-10">
+            Escribe una pregunta y presiona <strong className="text-ink">"Generar 3 respuestas"</strong>{' '}
+            para ver el efecto de la temperatura.
           </div>
-        )}
-
-        {compareSlots.length > 0 && (
+        ) : (
           <>
             <div className="text-xs text-muted">
-              Pregunta: <span className="text-body">"{comparePrompt}"</span> · temperatura{' '}
-              <strong className="text-ink">{compareTemp.toFixed(1)}</strong>
+              Pregunta: <span className="text-body">"{resultPrompt}"</span> · temperatura{' '}
+              <strong className="text-ink">{resultTemp.toFixed(1)}</strong>
             </div>
             <div className="grid grid-cols-1 gap-3">
-              {compareSlots.map((slot, i) => (
+              {slots.map((slot, i) => (
                 <div
                   key={i}
                   className="bg-surface border border-border rounded-lg p-3 text-sm text-body whitespace-pre-wrap"
                 >
                   <div className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1.5">
                     Respuesta {i + 1}
-                    {!slot.done && (
-                      <span className="ml-2 text-brand-600 normal-case">generando…</span>
-                    )}
+                    {!slot.done && <span className="ml-2 text-brand-600 normal-case">generando…</span>}
                   </div>
                   {slot.error ? (
                     <div className="text-red-700">{slot.error}</div>
@@ -302,16 +217,17 @@ export function TemperatureModule({ tab, module }: ModuleProps) {
       </div>
 
       <div className="border-t border-border px-4 py-2 text-xs text-muted shrink-0">
-        Las tres respuestas usan la misma pregunta y la misma temperatura. Las diferencias vienen
-        del muestreo aleatorio al generar cada token.
+        Las tres respuestas usan la misma pregunta y la misma temperatura. Las diferencias vienen del
+        muestreo aleatorio al generar cada token. Incluso en temperatura 0 pueden aparecer pequeñas
+        diferencias: el servicio no es 100% determinista.
       </div>
     </div>
   );
 
   return (
     <>
-      <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>{ChatPane}</div>
-      <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>{VizPane}</div>
+      <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>{ControlsPane}</div>
+      <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>{ResultsPane}</div>
     </>
   );
 }
