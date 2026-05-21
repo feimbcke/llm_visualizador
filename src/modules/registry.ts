@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { StreamingModule } from './streaming';
 import { TemperatureModule } from './temperature';
+import { HallucinationsModule } from './hallucinations';
 import { SystemPromptModule } from './system-prompt';
 
 export interface ModuleProps {
@@ -67,6 +68,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Comparación con la versión "con herramientas"',
     ],
     promptHint: 'Cítame un artículo de NEJM sobre el uso de SGLT2 en cirrosis descompensada.',
+    Component: HallucinationsModule,
   },
   {
     id: 'system-prompt',
