@@ -28,27 +28,50 @@ export function Header({ onLogout }: HeaderProps) {
               <span className="hidden sm:inline">Salir</span>
             </button>
           )}
-          <a
-            href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-brand-700 hover:bg-brand-50 transition-colors font-medium text-sm"
-          >
-            <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-              <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.27 2.36 4.27 5.43v6.31zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM3.56 20.45h3.55V9H3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
-            </svg>
-            Dr Fernando Eimbcke
-          </a>
+          <div className="hidden sm:flex flex-col items-end gap-0.5">
+            <a
+              href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-brand-700 hover:bg-brand-50 transition-colors font-medium text-sm"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.27 2.36 4.27 5.43v6.31zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM3.56 20.45h3.55V9H3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+              </svg>
+              Dr Fernando Eimbcke
+            </a>
+            <a
+              href="https://www.linkedin.com/in/alejandromauro/?locale=es"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-brand-700 hover:bg-brand-50 transition-colors font-medium text-sm"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.27 2.36 4.27 5.43v6.31zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM3.56 20.45h3.55V9H3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+              </svg>
+              Dr Alejandro Mauro
+            </a>
+          </div>
         </div>
       </div>
-      <a
-        href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="sm:hidden block bg-brand-50 text-brand-700 text-center text-sm font-medium py-2 border-t border-border hover:bg-brand-100 transition-colors"
-      >
-        Dr Fernando Eimbcke · LinkedIn ↗
-      </a>
+      <div className="sm:hidden border-t border-border divide-y divide-brand-100">
+        <a
+          href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-brand-50 text-brand-700 text-center text-sm font-medium py-2 hover:bg-brand-100 transition-colors"
+        >
+          Dr Fernando Eimbcke · LinkedIn ↗
+        </a>
+        <a
+          href="https://www.linkedin.com/in/alejandromauro/?locale=es"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-brand-50 text-brand-700 text-center text-sm font-medium py-2 hover:bg-brand-100 transition-colors"
+        >
+          Dr Alejandro Mauro · LinkedIn ↗
+        </a>
+      </div>
     </header>
   );
 }

@@ -3,6 +3,7 @@ import { StreamingModule } from './streaming';
 import { TemperatureModule } from './temperature';
 import { HallucinationsModule } from './hallucinations';
 import { SystemPromptModule } from './system-prompt';
+import { InjectionModule } from './injection';
 
 export interface ModuleProps {
   tab: 'chat' | 'viz';
@@ -110,6 +111,8 @@ export const MODULES: readonly ModuleMeta[] = [
       'Estrategias básicas de mitigación',
     ],
     promptHint: 'Resúmeme la siguiente nota clínica.',
+    mobileLayout: 'stack',
+    Component: InjectionModule,
   },
   // Módulo 6 ("Herramientas y búsqueda web") fue diseñado en torno al
   // grounding de Google Search nativo de Gemini. Tras el cambio a Groq queda
