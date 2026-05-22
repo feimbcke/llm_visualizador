@@ -17,6 +17,9 @@ interface Preset {
   /** Limitation this exposes, shown as a tag. */
   limit: string;
   question: string;
+  /** Appended to the no-tool prompt to force the model to answer without the
+   *  step-by-step that would otherwise let it calculate correctly. */
+  naiveHint?: string;
   toolName: string;
   toolArgs: string;
   /** Deterministic tool output computed/staged on the frontend. */
@@ -30,6 +33,8 @@ const PRESETS: Preset[] = [
     limit: 'No calcula con precisión',
     question:
       'Calcula el clearance de creatinina (Cockcroft-Gault) de un hombre de 72 años, 80 kg, creatinina 1.4 mg/dL.',
+    naiveHint:
+      'Responde de memoria, sin calcular paso a paso ni mostrar la fórmula: da solo el número final en mL/min.',
     toolName: 'calcular_clearance',
     toolArgs: 'edad=72, peso=80, creatinina=1.4, sexo=masculino',
     toolResult: `${cockcroftGault(72, 80, 1.4, false).toFixed(1)} mL/min`,
@@ -102,7 +107,11 @@ export function ToolsModule({ tab, onMainAction }: ModuleProps) {
       }
     }
 
-    await Promise.all([stream(preset.question, setNaive), stream(augmentedPrompt, setAugmented)]);
+    const naivePrompt = preset.naiveHint
+      ? `${preset.question}\n\n${preset.naiveHint}`
+      : preset.question;
+
+    await Promise.all([stream(naivePrompt, setNaive), stream(augmentedPrompt, setAugmented)]);
     setRunning(false);
     abortRef.current = null;
   }
