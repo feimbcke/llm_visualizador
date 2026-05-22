@@ -5,6 +5,7 @@ import { HallucinationsModule } from './hallucinations';
 import { SystemPromptModule } from './system-prompt';
 import { InjectionModule } from './injection';
 import { BiasModule } from './bias';
+import { ToolsModule } from './tools';
 
 export interface ModuleProps {
   tab: 'chat' | 'viz';
@@ -134,18 +135,33 @@ export const MODULES: readonly ModuleMeta[] = [
     Component: BiasModule,
   },
   {
-    id: 'memory',
+    id: 'tools',
     number: 7,
-    title: 'Memoria de corto plazo',
-    subtitle: 'La ventana de contexto y por qué el modelo olvida',
+    title: 'Herramientas',
+    subtitle: 'Cómo las herramientas superan los límites del modelo',
     vizDescription:
-      'Una conversación larga con un contador de tokens visible y una barra que llena la ventana de contexto. Demostración en vivo de cómo el modelo "olvida" cuando se trunca.',
+      'La misma pregunta respondida de dos formas: el modelo solo (que se equivoca al calcular o no conoce datos actuales) y el modelo con una herramienta (calculadora o consulta a la ficha) que le da el resultado exacto.',
     vizFeatures: [
-      'Contador de tokens por mensaje',
-      'Barra de ventana de contexto',
-      'Truncamiento manual para demostrar el olvido',
+      'Cálculo médico exacto vs. estimación del modelo',
+      'Consulta de datos en tiempo real (laboratorio)',
+      'Comparación lado a lado',
     ],
-    promptHint: 'Recuerda este número: 47829. Voy a referirme a él más adelante.',
+    promptHint: 'Calcula el clearance de creatinina de un hombre de 72 años, 80 kg, creatinina 1.4.',
+    Component: ToolsModule,
+  },
+  {
+    id: 'agentic',
+    number: 8,
+    title: 'Agéntica',
+    subtitle: 'Modelos que planifican y actúan en varios pasos',
+    vizDescription:
+      'Un agente combina varias herramientas y pasos para resolver una tarea: decide qué hacer, ejecuta, observa el resultado y continúa hasta lograr el objetivo.',
+    vizFeatures: [
+      'Encadenamiento de herramientas',
+      'Planificación en varios pasos',
+      'Observación y corrección',
+    ],
+    promptHint: 'Próximamente.',
   },
 ];
 
