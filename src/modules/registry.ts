@@ -4,6 +4,7 @@ import { TemperatureModule } from './temperature';
 import { HallucinationsModule } from './hallucinations';
 import { SystemPromptModule } from './system-prompt';
 import { InjectionModule } from './injection';
+import { BiasModule } from './bias';
 
 export interface ModuleProps {
   tab: 'chat' | 'viz';
@@ -130,6 +131,7 @@ export const MODULES: readonly ModuleMeta[] = [
       'Tabla comparativa de recomendaciones',
     ],
     promptHint: 'Paciente con dolor torácico de 6 horas de evolución. ¿Qué estudios solicitas?',
+    Component: BiasModule,
   },
   {
     id: 'memory',
