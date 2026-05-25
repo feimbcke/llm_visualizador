@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { SeahorseModule } from './seahorse';
 import { StreamingModule } from './streaming';
 import { TemperatureModule } from './temperature';
 import { HallucinationsModule } from './hallucinations';
@@ -40,6 +41,21 @@ export interface ModuleMeta {
 }
 
 export const MODULES: readonly ModuleMeta[] = [
+  {
+    id: 'seahorse',
+    number: 0,
+    title: 'El caballito de mar',
+    subtitle: 'Los modelos no "piensan": generan un token a la vez',
+    vizDescription:
+      'Una sola pregunta predefinida, respondida en vivo: el modelo entra en un bucle de "autocorrección" mostrando emojis equivocados, porque genera token a token sin un plan global.',
+    vizFeatures: [
+      'Pregunta predefinida (un clic)',
+      'Respuesta en streaming, con emojis',
+      'Por qué parece pensar sin pensar',
+    ],
+    mobileLayout: 'stack',
+    Component: SeahorseModule,
+  },
   {
     id: 'streaming',
     number: 1,

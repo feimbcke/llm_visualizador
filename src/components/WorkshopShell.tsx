@@ -40,7 +40,7 @@ export function WorkshopShell() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-start sm:items-center gap-3 flex-col sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-brand-700 uppercase tracking-wide">
-              Módulo {module.number} de {MODULES.length}
+              Módulo {module.number} de {MODULES[MODULES.length - 1].number}
             </div>
             <h1 className="text-xl font-bold text-ink truncate">{module.title}</h1>
             <p className="text-sm text-muted">{module.subtitle}</p>
