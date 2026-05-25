@@ -6,6 +6,7 @@ import { SystemPromptModule } from './system-prompt';
 import { InjectionModule } from './injection';
 import { BiasModule } from './bias';
 import { ToolsModule } from './tools';
+import { AgenticModule } from './agentic';
 
 export interface ModuleProps {
   tab: 'chat' | 'viz';
@@ -161,7 +162,8 @@ export const MODULES: readonly ModuleMeta[] = [
       'Planificación en varios pasos',
       'Observación y corrección',
     ],
-    promptHint: 'Próximamente.',
+    mobileLayout: 'stack',
+    Component: AgenticModule,
   },
 ];
 
