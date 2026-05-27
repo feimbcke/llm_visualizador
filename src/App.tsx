@@ -18,7 +18,7 @@ function AppShell() {
         </main>
       )}
 
-      <footer className="shrink-0 border-t border-border bg-white">
+      <footer className="hidden lg:block shrink-0 border-t border-border bg-white">
         <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-muted">
           Taller · Modelos de Lenguaje en Salud
         </div>

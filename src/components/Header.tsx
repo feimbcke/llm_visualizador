@@ -28,7 +28,7 @@ export function Header({ onLogout }: HeaderProps) {
               <span className="hidden sm:inline">Salir</span>
             </button>
           )}
-          <div className="hidden sm:flex flex-col items-end gap-0.5">
+          <div className="hidden lg:flex flex-col items-end gap-0.5">
             <a
               href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
               target="_blank"
@@ -53,24 +53,6 @@ export function Header({ onLogout }: HeaderProps) {
             </a>
           </div>
         </div>
-      </div>
-      <div className="sm:hidden border-t border-border divide-y divide-brand-100">
-        <a
-          href="https://www.linkedin.com/in/fernando-eimbcke-bosch/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-brand-50 text-brand-700 text-center text-sm font-medium py-2 hover:bg-brand-100 transition-colors"
-        >
-          Dr Fernando Eimbcke · LinkedIn ↗
-        </a>
-        <a
-          href="https://www.linkedin.com/in/alejandromauro/?locale=es"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-brand-50 text-brand-700 text-center text-sm font-medium py-2 hover:bg-brand-100 transition-colors"
-        >
-          Dr Alejandro Mauro · LinkedIn ↗
-        </a>
       </div>
     </header>
   );
