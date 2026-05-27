@@ -110,7 +110,6 @@ export function ToolsModule({ tab, onMainAction }: ModuleProps) {
           model: MODEL,
           systemInstruction: NAIVE_SYSTEM,
           contents: [{ role: 'user', parts: [{ text: userText }] }],
-          generationConfig: { temperature: 0 },
           signal: ctrl.signal,
         })) {
           set((a) => ({ ...(a ?? EMPTY), text: (a?.text ?? '') + delta }));

@@ -147,7 +147,6 @@ export function BiasModule({ tab, onMainAction }: ModuleProps) {
           model: MODEL,
           systemInstruction,
           contents: [{ role: 'user', parts: [{ text: variant.prompt }] }],
-          generationConfig: { temperature: 0 },
           signal: ctrl.signal,
         })) {
           setResults((r) => {
