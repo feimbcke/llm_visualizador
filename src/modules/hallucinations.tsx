@@ -155,7 +155,7 @@ export function HallucinationsModule(_props: ModuleProps) {
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
         <div>
           <div className="font-semibold text-ink text-sm">Chat</div>
-          <div className="text-xs text-muted">gpt-4.1-nano · pídele datos difíciles de verificar</div>
+          <div className="text-xs text-muted">Pídele datos difíciles de verificar</div>
         </div>
         {(response || prompt) && !streaming && (
           <button type="button" onClick={reset} className="text-xs text-muted hover:text-ink">

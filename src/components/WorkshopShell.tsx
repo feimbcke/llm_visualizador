@@ -57,6 +57,9 @@ export function WorkshopShell() {
           </div>
           <h1 className="text-xl font-bold text-ink truncate">{module.title}</h1>
           <p className="text-sm text-muted">{module.subtitle}</p>
+          <div className="mt-1 text-xs text-muted">
+            Modelo: <span className="font-mono text-ink">{module.model}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <button

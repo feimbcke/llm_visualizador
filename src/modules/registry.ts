@@ -25,6 +25,8 @@ export interface ModuleMeta {
   number: number;
   title: string;
   subtitle: string;
+  /** Model this module uses, shown in the banner. */
+  model: string;
   /** What the visualization side will show once built (for placeholder modules). */
   vizDescription: string;
   /** Bullet list of what the visualization will include (for placeholder modules). */
@@ -46,6 +48,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 0,
     title: 'El caballito de mar',
     subtitle: 'Los modelos no "piensan": generan un token a la vez',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Una sola pregunta predefinida, respondida en vivo: el modelo entra en un bucle de "autocorrección" mostrando emojis equivocados, porque genera token a token sin un plan global.',
     vizFeatures: [
@@ -61,6 +64,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 1,
     title: 'Streaming de tokens',
     subtitle: 'Cómo los modelos generan texto un token a la vez',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Cada token aparecerá como un chip a medida que el modelo lo genera, con su índice, identificador y — cuando esté disponible — las alternativas que el modelo consideró.',
     vizFeatures: [
@@ -76,6 +80,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 2,
     title: 'Temperatura',
     subtitle: 'El parámetro que controla la creatividad y la consistencia',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Un control deslizante de 0.0 a 2.0 y un botón "generar 3 respuestas" para comparar lado a lado cómo cambia la salida con la misma pregunta.',
     vizFeatures: [
@@ -91,6 +96,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 3,
     title: 'Alucinaciones',
     subtitle: 'Por qué los modelos inventan respuestas con confianza',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Ejemplos clásicos pre-herramientas: forzar al modelo a decir 2+2=5, o pedirle una cita bibliográfica de un paper que no existe. El modelo "completa" estadísticamente sin saber.',
     vizFeatures: [
@@ -107,6 +113,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 4,
     title: 'Prompt de sistema',
     subtitle: 'Cómo cambiar el rol y el tono del modelo',
+    model: 'gpt-5-nano',
     vizDescription:
       'Editor visible del prompt de sistema con presets ("Médico cauteloso", "Estudiante de medicina", "Asistente sin filtros"). Misma pregunta del usuario, distintas respuestas.',
     vizFeatures: [
@@ -122,6 +129,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 5,
     title: 'Inyección de prompts',
     subtitle: 'Cuando el contenido del usuario sobrescribe las instrucciones del sistema',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Un "documento clínico" simulado que contiene instrucciones ocultas. El usuario pide un resumen y el modelo termina siguiendo la instrucción inyectada en lugar del prompt de sistema.',
     vizFeatures: [
@@ -133,14 +141,12 @@ export const MODULES: readonly ModuleMeta[] = [
     mobileLayout: 'stack',
     Component: InjectionModule,
   },
-  // Módulo 6 ("Herramientas y búsqueda web") fue diseñado en torno al
-  // grounding de Google Search nativo de Gemini. Tras el cambio a Groq queda
-  // oculto hasta definir el reemplazo (function calling, compound-beta, etc.).
   {
     id: 'bias',
     number: 6,
     title: 'Sesgos en medicina',
     subtitle: 'Cómo el contexto del paciente afecta las recomendaciones',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Viñetas clínicas idénticas con variaciones de demografía (género, edad, etnia). El modelo procesa cada variante y mostramos las diferencias en una tabla.',
     vizFeatures: [
@@ -156,6 +162,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 7,
     title: 'Herramientas',
     subtitle: 'Cómo las herramientas superan los límites del modelo',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'La misma pregunta respondida de dos formas: el modelo solo (que se equivoca al calcular o no conoce datos actuales) y el modelo con una herramienta (calculadora o consulta a la ficha) que le da el resultado exacto.',
     vizFeatures: [
@@ -171,6 +178,7 @@ export const MODULES: readonly ModuleMeta[] = [
     number: 8,
     title: 'Agéntica',
     subtitle: 'Modelos que planifican y actúan en varios pasos',
+    model: 'gpt-4.1-nano',
     vizDescription:
       'Un agente combina varias herramientas y pasos para resolver una tarea: decide qué hacer, ejecuta, observa el resultado y continúa hasta lograr el objetivo.',
     vizFeatures: [

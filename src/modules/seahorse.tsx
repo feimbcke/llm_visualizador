@@ -65,7 +65,7 @@ export function SeahorseModule(_props: ModuleProps) {
     <div className="bg-white border border-border rounded-xl shadow-sm flex flex-col h-full min-h-[400px]">
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="font-semibold text-ink text-sm">Chat</div>
-        <div className="text-xs text-muted">gpt-4.1-nano · respuesta en vivo</div>
+        <div className="text-xs text-muted">Respuesta en vivo</div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
