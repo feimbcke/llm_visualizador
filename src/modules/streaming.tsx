@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LlmError, streamTokens, type Content } from '../lib/llm';
 import { useApp } from '../state/AppContext';
+import { TokenPopover } from '../components/TokenPopover';
 import type { ModuleProps } from './registry';
 
 // gpt-4.1-nano (non-reasoning) is the only nano that exposes per-token
@@ -41,15 +42,12 @@ function show(token: string): string {
   return token.replace(/\n/g, '↵');
 }
 
-function tokenTitle(tok: Tok): string {
-  const lines = [`"${show(tok.text)}" · ${(tok.prob * 100).toFixed(1)}% probable`];
-  if (tok.alternatives.length > 0) {
-    lines.push('Alternativas:');
-    for (const a of tok.alternatives.slice(0, 3)) {
-      lines.push(`  "${show(a.token)}" ${(a.prob * 100).toFixed(1)}%`);
-    }
-  }
-  return lines.join('\n');
+interface Selected {
+  key: string;
+  rect: DOMRect;
+  token: string;
+  prob: number;
+  alternatives: { token: string; prob: number }[];
 }
 
 export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
@@ -57,8 +55,18 @@ export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
   const [input, setInput] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [streaming, setStreaming] = useState(false);
+  const [selected, setSelected] = useState<Selected | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const vizScrollRef = useRef<HTMLDivElement | null>(null);
+
+  function openToken(e: React.MouseEvent, key: string, tok: Tok) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSelected((prev) =>
+      prev?.key === key
+        ? null
+        : { key, rect, token: tok.text, prob: tok.prob, alternatives: tok.alternatives },
+    );
+  }
 
   const totalTokens = turns.reduce(
     (sum, t) => sum + approximateTokens(t.question).length + t.tokens.length,
@@ -243,7 +251,7 @@ export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-semibold text-ink text-sm">Tokens</div>
-          <div className="text-xs text-muted">Coloreados por probabilidad · pasa el cursor para ver alternativas</div>
+          <div className="text-xs text-muted">Coloreados por probabilidad · toca un token para ver alternativas</div>
         </div>
         <div className="text-xs text-muted tabular-nums text-right shrink-0">
           <div>
@@ -294,9 +302,10 @@ export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
                       {turn.tokens.map((tok, i) => (
                         <span
                           key={i}
-                          title={tokenTitle(tok)}
+                          data-token-chip
+                          onClick={(e) => openToken(e, `t${ti}-${i}`, tok)}
                           style={probStyle(tok.prob)}
-                          className="inline-block px-1.5 py-0.5 rounded-md border text-ink text-xs font-mono whitespace-pre cursor-help"
+                          className="inline-block px-1.5 py-0.5 rounded-md border text-ink text-xs font-mono whitespace-pre cursor-pointer"
                         >
                           {show(tok.text)}
                         </span>
@@ -320,9 +329,9 @@ export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
           <span>Probable</span>
         </div>
         <p className="text-xs text-muted">
-          El color es la probabilidad que el modelo le dio a cada token al elegirlo. Pasa el cursor
-          sobre un token para ver las alternativas que consideró. (Los tokens de tu pregunta son una
-          aproximación.)
+          El color es la probabilidad que el modelo le dio a cada token al elegirlo. Toca un token
+          para ver su probabilidad y las alternativas que consideró. (Los tokens de tu pregunta son
+          una aproximación.)
         </p>
       </div>
     </div>
@@ -332,6 +341,15 @@ export function StreamingModule({ tab, module, onMainAction }: ModuleProps) {
     <>
       <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>{ChatPane}</div>
       <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>{VizPane}</div>
+      {selected && (
+        <TokenPopover
+          anchor={selected.rect}
+          token={selected.token}
+          prob={selected.prob}
+          alternatives={selected.alternatives}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </>
   );
 }

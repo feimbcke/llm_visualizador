@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { LlmError, streamTokens, TEMPERATURE_MODEL } from '../lib/llm';
 import { useApp } from '../state/AppContext';
+import { TokenPopover } from '../components/TokenPopover';
 import type { ModuleProps } from './registry';
 
 interface SlotToken {
@@ -38,7 +39,15 @@ export function TemperatureModule({ tab, module, onMainAction }: ModuleProps) {
   const [resultPrompt, setResultPrompt] = useState('');
   const [resultTemp, setResultTemp] = useState(1.0);
   const [slots, setSlots] = useState<CompareSlot[]>([]);
+  const [selected, setSelected] = useState<
+    { key: string; rect: DOMRect; token: string; prob: number } | null
+  >(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  function openToken(e: React.MouseEvent, key: string, tok: SlotToken) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSelected((prev) => (prev?.key === key ? null : { key, rect, token: tok.text, prob: tok.prob }));
+  }
 
   async function generate(textArg?: string) {
     const prompt = (textArg ?? input).trim();
@@ -227,9 +236,10 @@ export function TemperatureModule({ tab, module, onMainAction }: ModuleProps) {
                     slot.tokens.map((tok, k) => (
                       <span
                         key={k}
+                        data-token-chip
+                        onClick={(e) => openToken(e, `s${i}-${k}`, tok)}
                         style={tint(tok.prob)}
-                        title={`${(tok.prob * 100).toFixed(1)}% probable`}
-                        className="rounded-sm"
+                        className="rounded-sm cursor-pointer"
                       >
                         {tok.text}
                       </span>
@@ -254,9 +264,10 @@ export function TemperatureModule({ tab, module, onMainAction }: ModuleProps) {
           <span>Probable</span>
         </div>
         <p className="text-xs text-muted">
-          Cada token está teñido por la probabilidad que el modelo le dio. Con temperatura alta verás
-          más tokens improbables (rojizos): por eso las respuestas divergen. Incluso en temperatura 0
-          pueden aparecer pequeñas diferencias: el servicio no es 100% determinista.
+          Cada token está teñido por la probabilidad que el modelo le dio; toca uno para ver el
+          porcentaje. Con temperatura alta verás más tokens improbables (rojizos): por eso las
+          respuestas divergen. Incluso en temperatura 0 pueden aparecer pequeñas diferencias: el
+          servicio no es 100% determinista.
         </p>
       </div>
     </div>
@@ -266,6 +277,14 @@ export function TemperatureModule({ tab, module, onMainAction }: ModuleProps) {
     <>
       <div className={tab === 'chat' ? 'block' : 'hidden lg:block'}>{ControlsPane}</div>
       <div className={tab === 'viz' ? 'block' : 'hidden lg:block'}>{ResultsPane}</div>
+      {selected && (
+        <TokenPopover
+          anchor={selected.rect}
+          token={selected.token}
+          prob={selected.prob}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </>
   );
 }
