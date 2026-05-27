@@ -11,6 +11,10 @@ function cockcroftGault(age: number, weightKg: number, creat: number, female: bo
   return (((140 - age) * weightKg) / (72 * creat)) * (female ? 0.85 : 1);
 }
 
+// A long arithmetic expression, evaluated for real on the frontend (our "tool").
+const COMPLEX_EXPR = '(3*4/6) + 2 - (9*34/5) - (6/2)';
+const COMPLEX_RESULT = String(Number((((3 * 4) / 6) + 2 - ((9 * 34) / 5) - (6 / 2)).toFixed(4)));
+
 interface Preset {
   id: string;
   label: string;
@@ -20,6 +24,8 @@ interface Preset {
   /** Appended to the no-tool prompt to force the model to answer without the
    *  step-by-step that would otherwise let it calculate correctly. */
   naiveHint?: string;
+  /** Optional hint shown under the question (e.g. the expected correct answer). */
+  help?: string;
   toolName: string;
   toolArgs: string;
   /** Deterministic tool output computed/staged on the frontend. */
@@ -29,7 +35,7 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     id: 'calc',
-    label: 'Cálculo',
+    label: 'Cálculo VFG',
     limit: 'No calcula con precisión',
     question:
       'Calcula el clearance de creatinina (Cockcroft-Gault) de un hombre de 72 años, 80 kg, creatinina 1.4 mg/dL.',
@@ -38,6 +44,17 @@ const PRESETS: Preset[] = [
     toolName: 'calcular_clearance',
     toolArgs: 'edad=72, peso=80, creatinina=1.4, sexo=masculino',
     toolResult: `${cockcroftGault(72, 80, 1.4, false).toFixed(1)} mL/min`,
+  },
+  {
+    id: 'arit',
+    label: 'Operación larga',
+    limit: 'No calcula con precisión',
+    question: `Calcula exactamente, respetando el orden de las operaciones: ${COMPLEX_EXPR}`,
+    naiveHint: 'Responde de memoria, sin calcular paso a paso: da solo el número final.',
+    help: `Respuesta correcta: ${COMPLEX_RESULT}.`,
+    toolName: 'calculadora',
+    toolArgs: COMPLEX_EXPR,
+    toolResult: COMPLEX_RESULT,
   },
   {
     id: 'lab',
@@ -168,6 +185,7 @@ export function ToolsModule({ tab, onMainAction }: ModuleProps) {
               Límite: {preset.limit}
             </span>
           </div>
+          {preset.help && <p className="mt-2 text-xs text-muted">{preset.help}</p>}
         </div>
       </div>
 
